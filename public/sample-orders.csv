@@ -1,0 +1,4 @@
+Order ID,Channel,Value,Payment,Delivery Status,Date,Partner
+ORD-DEMO-1001,Website,1499,COD,Delivered,2026-10-18,Courier Alpha
+ORD-DEMO-1002,Marketplace 1,1199,Prepaid,Delivered,2026-10-20,Marketplace 1
+ORD-DEMO-1003,Website,2398,Prepaid,Return in transit,2026-10-19,Courier Beta
