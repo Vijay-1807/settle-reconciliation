@@ -1,0 +1,370 @@
+/* Finance tables need contrast and comfortable reading sizes. */
+:root {
+  --muted: #6a766a;
+}
+.stat-label,
+.page-heading p,
+.panel-heading p {
+  color: #6c7869;
+}
+.stat-foot,
+.recovery-note,
+.demo-label,
+.summary-strip,
+.quiet-note,
+.table-caption,
+.tax-note,
+footer {
+  color: #727f6a;
+}
+.data-table th {
+  color: #66765d;
+  font-size: 11px;
+  font-weight: 600;
+}
+.data-table td {
+  font-size: 12px;
+  color: #56634f;
+}
+.data-table td small {
+  color: #75826a;
+  font-size: 10px;
+}
+.order-link {
+  font-size: 12px;
+}
+.pill {
+  font-size: 10px;
+  padding: 4px 7px;
+}
+.pill.green {
+  color: #456f3b;
+  background: #edf5e9;
+}
+.pill.red {
+  color: #9f4b36;
+  background: #fbede7;
+}
+.pill.amber {
+  color: #89631d;
+  background: #faf1db;
+}
+.pill.purple {
+  color: #785392;
+  background: #f3edf9;
+}
+.pill.neutral {
+  color: #67765a;
+  background: #f0f3ec;
+}
+.stat-foot .mini-pill.amber {
+  color: #89631d;
+}
+.action-row small,
+.panel-heading p,
+.demo-strip,
+.demo-strip strong {
+  color: #748168;
+}
+.action-meta {
+  color: #8d7549;
+}
+.bar-row .partner-label,
+.bar-row strong {
+  font-size: 11px;
+}
+.chart-scale,
+.risk-chart-label,
+.risk-chart-label span,
+.panel-note,
+.action-bottom {
+  color: #76866a;
+}
+.stat-card.risk-stat {
+  box-shadow: inset 0 2px 0 #5b8062;
+}
+.stat-value {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -1px;
+}
+.table-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #bccbb2 #f4f7ef;
+}
+.panel:has(.table-toolbar) .table-scroll {
+  max-height: 610px;
+}
+.panel:has(.table-toolbar) .data-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f7faf2;
+}
+.data-table tbody tr:has(input:checked) {
+  background: #eef5e8;
+}
+.table-scroll:focus-visible {
+  outline: 2px solid #83a775;
+  outline-offset: -3px;
+}
+.bulk-bar {
+  font-size: 11px;
+  color: #68785b;
+}
+.pagination {
+  font-size: 11px;
+  color: #6f7e62;
+}
+.nav-label {
+  color: #798870;
+  font-size: 10px;
+}
+.tabs > button {
+  font-size: 12px;
+  color: #738368;
+}
+.tabs-end {
+  color: #748568;
+}
+.form-label,
+.upload-settings label,
+.mapping-grid > label,
+.rate-fields label {
+  color: #617452;
+}
+.mapping-grid small,
+.approve-check,
+.preview-heading span,
+.upload-foot,
+.guide-step p,
+.guide-note {
+  color: #718662;
+}
+.rate-input input:disabled {
+  color: #647357;
+}
+.info-banner,
+.info-banner strong {
+  color: #647b51;
+}
+.demo-login > p,
+.demo-password,
+.login-bottom,
+.demo-role small,
+.login-form > p {
+  color: #738366;
+}
+.upload-settings select,
+.form-label input,
+.mapping-grid select {
+  min-height: 42px;
+}
+.icon-btn {
+  min-width: 34px;
+  min-height: 34px;
+}
+.stat-card,
+.panel {
+  box-shadow: 0 2px 6px #26351a02;
+}
+.btn:active {
+  transform: translateY(0);
+}
+.mobile-menu {
+  color: #47663b;
+}
+@media (max-width: 760px) {
+  .page-heading h1 {
+    font-size: 27px;
+  }
+  .page-heading p {
+    font-size: 12px;
+  }
+  .stat-label {
+    font-size: 11px;
+  }
+  .stat-value {
+    font-size: 25px;
+  }
+  .stat-foot,
+  .recovery-note {
+    font-size: 10px;
+    white-space: normal;
+    line-height: 1.6;
+  }
+  .stat-foot .mini-pill {
+    font-size: 9px;
+  }
+  .stat-card {
+    min-height: 162px;
+    padding: 15px 13px;
+  }
+  .panel-heading h2 {
+    font-size: 14px;
+  }
+  .panel-heading p {
+    font-size: 11px;
+  }
+  .panel-heading .text-btn {
+    font-size: 10px;
+    white-space: normal;
+    text-align: right;
+  }
+  .bar-row {
+    grid-template-columns: 120px minmax(0, 1fr) 70px;
+    gap: 7px;
+  }
+  .bar-row .partner-label,
+  .bar-row strong {
+    font-size: 10px;
+  }
+  .action-row strong {
+    font-size: 12px;
+  }
+  .action-row small,
+  .action-row .action-meta {
+    font-size: 11px;
+  }
+  .action-bottom,
+  .panel-note {
+    font-size: 9px;
+  }
+  .risk-chart-label,
+  .risk-chart-label span,
+  .chart-scale {
+    font-size: 9px;
+  }
+  .data-table th {
+    font-size: 11px;
+  }
+  .data-table td,
+  .order-link {
+    font-size: 12px;
+  }
+  .data-table td small {
+    font-size: 10px;
+  }
+  .pill {
+    font-size: 10px;
+  }
+  .table-scroll::before {
+    content: "Scroll horizontally to see every column →";
+    display: block;
+    position: sticky;
+    left: 0;
+    padding: 9px 16px;
+    background: #fafcf6;
+    color: #6e805f;
+    font-size: 10px;
+    border-top: 1px solid #e6e9e5;
+  }
+  .table-toolbar .select-wrap {
+    min-height: 38px;
+  }
+  .filter-group .select-wrap select {
+    font-size: 11px;
+  }
+  .search-input {
+    height: 40px;
+  }
+  .search-input input {
+    font-size: 12px;
+  }
+  .tabs-end {
+    display: none;
+  }
+  .pagination {
+    font-size: 10px;
+  }
+  .pagination .icon-btn {
+    min-height: 36px;
+    min-width: 36px;
+  }
+  .btn,
+  .text-btn,
+  .nav-item,
+  .icon-btn {
+    min-height: 40px;
+  }
+  .bulk-bar {
+    font-size: 10px;
+    gap: 10px;
+  }
+  .bulk-bar label {
+    margin-left: 0;
+  }
+  .bulk-bar .btn {
+    font-size: 10px;
+    min-height: 36px;
+    margin-left: auto;
+  }
+  .claim-stats span,
+  .claim-stats small {
+    font-size: 10px;
+  }
+  .claim-stats strong {
+    font-size: 18px;
+  }
+  .summary-strip,
+  .summary-strip > span:last-child,
+  .quiet-note,
+  .tax-note {
+    font-size: 11px;
+  }
+  .tax-note .text-btn {
+    font-size: 11px;
+  }
+  .upload-foot,
+  .upload-panel .panel-heading p,
+  .file-types small {
+    font-size: 10px;
+  }
+  .upload-settings label,
+  .form-label,
+  .mapping-grid > label {
+    font-size: 12px;
+  }
+  .mapping-grid select,
+  .approve-check {
+    font-size: 11px;
+  }
+  .modal-header {
+    padding: 20px 16px;
+  }
+  .modal-header h2 {
+    font-size: 18px;
+  }
+  .modal-body {
+    padding: 20px 16px;
+  }
+  .detail-amounts strong {
+    font-size: 21px;
+  }
+  .modal-body .calculation > div,
+  .issue-row,
+  .evidence-box strong {
+    font-size: 12px;
+  }
+  .detail-footer .btn {
+    min-height: 40px;
+  }
+  .login-form .form-label {
+    font-size: 12px;
+  }
+  .login-form .form-label input {
+    font-size: 16px;
+  }
+  .demo-role strong {
+    font-size: 12px;
+  }
+  .demo-role small,
+  .demo-password,
+  .login-bottom {
+    font-size: 10px;
+  }
+  footer {
+    font-size: 9px;
+    flex-wrap: wrap;
+    line-height: 1.7;
+  }
+}

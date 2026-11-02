@@ -1,10 +1,48 @@
-import {build} from 'esbuild';
-import {mkdirSync,readFileSync,writeFileSync,copyFileSync} from 'node:fs';
-await build({entryPoints:['src/client.js'],bundle:true,minify:true,format:'iife',outfile:'public/app.js'});
-for(const [name,pkg] of [['dm-sans','dm-sans'],['manrope','manrope']])copyFileSync(`node_modules/@fontsource-variable/${pkg}/files/${pkg}-latin-wght-normal.woff2`,`public/${name}.woff2`);
-const assets=Object.fromEntries(['index.html','app.js','style.css','sample-orders.csv','dm-sans.woff2','manrope.woff2'].map(name=>['/'+name,readFileSync('public/'+name,name.endsWith('.woff2')?'base64':'utf8')]));
-mkdirSync('dist/server',{recursive:true});mkdirSync('dist/.openai',{recursive:true});
-writeFileSync('src/assets.generated.mjs','export default '+JSON.stringify(assets));
-await build({entryPoints:['src/worker.mjs'],bundle:true,format:'esm',platform:'browser',target:'es2022',outfile:'dist/server/index.js',minify:true});
-copyFileSync('.openai/hosting.json','dist/.openai/hosting.json');
-console.log('Built browser and Worker bundles.');
+import { build } from "esbuild";
+import { mkdirSync, readFileSync, writeFileSync, copyFileSync } from "node:fs";
+await build({
+  entryPoints: ["src/client.js"],
+  bundle: true,
+  minify: true,
+  format: "iife",
+  outfile: "public/app.js",
+});
+for (const [name, pkg] of [
+  ["dm-sans", "dm-sans"],
+  ["manrope", "manrope"],
+])
+  copyFileSync(
+    `node_modules/@fontsource-variable/${pkg}/files/${pkg}-latin-wght-normal.woff2`,
+    `public/${name}.woff2`,
+  );
+const assets = Object.fromEntries(
+  [
+    "index.html",
+    "app.js",
+    "style.css",
+    "polish.css",
+    "sample-orders.csv",
+    "dm-sans.woff2",
+    "manrope.woff2",
+  ].map((name) => [
+    "/" + name,
+    readFileSync("public/" + name, name.endsWith(".woff2") ? "base64" : "utf8"),
+  ]),
+);
+mkdirSync("dist/server", { recursive: true });
+mkdirSync("dist/.openai", { recursive: true });
+writeFileSync(
+  "src/assets.generated.mjs",
+  "export default " + JSON.stringify(assets),
+);
+await build({
+  entryPoints: ["src/worker.mjs"],
+  bundle: true,
+  format: "esm",
+  platform: "browser",
+  target: "es2022",
+  outfile: "dist/server/index.js",
+  minify: true,
+});
+copyFileSync(".openai/hosting.json", "dist/.openai/hosting.json");
+console.log("Built browser and Worker bundles.");

@@ -1,88 +1,1190 @@
-import {createIcons,ChevronsUpDown,LayoutDashboard,ArrowLeftRight,Upload,FileCheck2,RotateCcw,SlidersHorizontal,Layers,ArrowUpRight,ArrowDownLeft,ChevronDown,ChevronRight,ChevronLeft,Plus,Search,Download,Check,CheckCheck,Clock,ArrowRight,X,LogOut,Menu,HelpCircle,ShieldCheck,FileSpreadsheet,CloudUpload,Sparkles,AlertCircle,Wallet,IndianRupee,ExternalLink,MoreHorizontal,History,Settings2,PackageCheck,CheckCircle2,CalendarDays,Filter} from 'lucide';
-import * as XLSX from 'xlsx';
-import {fields,channels,partners} from './engine.mjs';
-const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
-const icons={ChevronsUpDown,LayoutDashboard,ArrowLeftRight,Upload,FileCheck2,RotateCcw,SlidersHorizontal,Layers,ArrowUpRight,ArrowDownLeft,ChevronDown,ChevronRight,ChevronLeft,Plus,Search,Download,Check,CheckCheck,Clock,ArrowRight,X,LogOut,Menu,HelpCircle,ShieldCheck,FileSpreadsheet,CloudUpload,Sparkles,AlertCircle,Wallet,IndianRupee,ExternalLink,MoreHorizontal,History,Settings2,PackageCheck,CheckCircle2,CalendarDays,Filter};
-const I=(name,cls='')=>`<i data-lucide="${name}" class="${cls}"></i>`;
-const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const money=(n,compact=false)=>compact&&Math.abs(n)>=100000?'₹'+(n/100000).toFixed(2)+'L':'₹'+Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2});
-const num=n=>Number(n||0).toLocaleString('en-IN');
-const date=d=>new Date(d).toLocaleDateString('en-IN',{day:'2-digit',month:'short'});
-let data,view='Overview',q='',filter='All statuses',partner='All partners',page=1,selected=new Set(),draft=null,activeTab='All orders',period='All dates';
+import {
+  createIcons,
+  ChevronsUpDown,
+  LayoutDashboard,
+  ArrowLeftRight,
+  Upload,
+  FileCheck2,
+  RotateCcw,
+  SlidersHorizontal,
+  Layers,
+  ArrowUpRight,
+  ArrowDownLeft,
+  ChevronDown,
+  ChevronRight,
+  ChevronLeft,
+  Plus,
+  Search,
+  Download,
+  Check,
+  CheckCheck,
+  Clock,
+  ArrowRight,
+  X,
+  LogOut,
+  Menu,
+  HelpCircle,
+  ShieldCheck,
+  FileSpreadsheet,
+  CloudUpload,
+  Sparkles,
+  AlertCircle,
+  Wallet,
+  IndianRupee,
+  ExternalLink,
+  MoreHorizontal,
+  History,
+  Settings2,
+  PackageCheck,
+  CheckCircle2,
+  CalendarDays,
+  Filter,
+} from "lucide";
+import * as XLSX from "xlsx";
+import { fields, channels, partners } from "./engine.mjs";
+const $ = (s) => document.querySelector(s),
+  $$ = (s) => [...document.querySelectorAll(s)];
+const icons = {
+  ChevronsUpDown,
+  LayoutDashboard,
+  ArrowLeftRight,
+  Upload,
+  FileCheck2,
+  RotateCcw,
+  SlidersHorizontal,
+  Layers,
+  ArrowUpRight,
+  ArrowDownLeft,
+  ChevronDown,
+  ChevronRight,
+  ChevronLeft,
+  Plus,
+  Search,
+  Download,
+  Check,
+  CheckCheck,
+  Clock,
+  ArrowRight,
+  X,
+  LogOut,
+  Menu,
+  HelpCircle,
+  ShieldCheck,
+  FileSpreadsheet,
+  CloudUpload,
+  Sparkles,
+  AlertCircle,
+  Wallet,
+  IndianRupee,
+  ExternalLink,
+  MoreHorizontal,
+  History,
+  Settings2,
+  PackageCheck,
+  CheckCircle2,
+  CalendarDays,
+  Filter,
+};
+const I = (name, cls = "") => `<i data-lucide="${name}" class="${cls}"></i>`;
+const esc = (v) =>
+  String(v ?? "").replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        c
+      ],
+  );
+const money = (n, compact = false) => {
+  const value = Number(n || 0),
+    sign = value < 0 ? "−" : "";
+  return (
+    sign +
+    "₹" +
+    (compact && Math.abs(value) >= 100000
+      ? (Math.abs(value) / 100000).toFixed(2) + "L"
+      : Math.abs(value).toLocaleString("en-IN", { maximumFractionDigits: 2 }))
+  );
+};
+const num = (n) => Number(n || 0).toLocaleString("en-IN");
+const date = (d) =>
+  new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
+let data,
+  view = "Overview",
+  q = "",
+  filter = "All statuses",
+  partner = "All partners",
+  page = 1,
+  selected = new Set(),
+  draft = null,
+  activeTab = "All orders",
+  period = "All dates";
 let toastTimer;
-function toast(message,error=false){$('#toast').innerHTML=I(error?'alert-circle':'check-circle-2')+esc(message);$('#toast').className='show'+(error?' error':'');hydrate();clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').className='',4500);}
-function hydrate(){createIcons({icons,attrs:{'stroke-width':1.65}});}
-async function request(path,body){const res=await fetch('/api/'+path,{...(body===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})});const result=await res.json();if(!res.ok){const error=new Error(result.error);error.details=result.errors;error.status=res.status;throw error;}return result;}
-async function load(){data=await request('state');render();}
-function button(text,action,kind='secondary',icon=''){return `<button class="btn ${kind}" data-action="${action}">${icon?I(icon):''}${text}</button>`;}
-function pill(status){const cls=status==='Settled'||status==='Recovered'?'green':status==='Short-paid'||status==='Return not received'?'red':status==='Freight overcharged'?'purple':status==='Unpaid past due'?'amber':'neutral';return `<span class="pill ${cls}"><span class="dot"></span>${esc(status)}</span>`;}
-function label(text){return `<div class="eyebrow">${text}</div>`;}
-function empty(title,sub,action=''){return `<div class="empty">${I('check-check')}<h3>${title}</h3><p>${sub}</p>${action}</div>`;}
-function currentOrders(){return data.orders.filter(o=>(period==='All dates'||o.date.startsWith(period==='October 2026'?'2026-10':'2026-11'))&&(!q||[o.id,o.channel,o.partner].some(v=>v.toLowerCase().includes(q.toLowerCase())))&&(partner==='All partners'||o.partner===partner)&&(filter==='All statuses'||o.status===filter));}
-function shell(){return `<aside class="sidebar"><a href="#" class="brand" data-nav="Overview"><span class="brand-mark">s<span>•</span></span>settle<span class="brand-period">.</span></a><button class="workspace" data-action="workspace"><span class="workspace-icon">A</span><span><strong>Company A</strong><small>Finance workspace</small></span>${I('chevron-down')}</button><div class="nav-label">WORKSPACE</div><nav>${[['Overview','layout-dashboard'],['Reconciliation','arrow-left-right'],['Imports','upload'],['Claims','file-check-2'],['Returns','rotate-ccw']].map(([name,icon])=>`<button class="nav-item ${view===name?'active':''}" data-nav="${name}">${I(icon)}<span>${name}</span>${name==='Claims'?`<span class="nav-count">${data.orders.filter(o=>o.risk>0&&o.claim==='Open').length}</span>`:''}</button>`).join('')}</nav><div class="nav-label configuration">CONFIGURATION</div><nav>${[['Rate cards','sliders-horizontal'],['Mapping history','layers']].map(([name,icon])=>`<button class="nav-item ${view===name?'active':''}" data-nav="${name}">${I(icon)}<span>${name}</span></button>`).join('')}</nav><div class="sidebar-bottom"><div class="close-card"><span class="live-dot"></span> Your numbers, in order.<p>A clearer close starts here.</p></div><button class="nav-item" data-action="help">${I('help-circle')}<span>Help & getting started</span>${I('arrow-up-right')}</button><button class="profile" data-action="account"><span class="avatar">${data.user.role==='co-founder'?'AR':'VB'}</span><span><strong>${esc(data.user.name)}</strong><small>${esc(data.user.role)}</small></span>${I('chevrons-up-down')}</button></div></aside><div class="scrim" data-action="mobile-menu"></div><div class="main"><header class="topbar"><div class="breadcrumb"><button class="icon-btn mobile-menu" aria-label="Open navigation" data-action="mobile-menu">${I('menu')}</button><span>Workspace</span>${I('chevron-right')}<strong>${view}</strong></div><div class="top-right"><span class="demo-label"><span class="live-dot"></span>Demo workspace</span><button class="icon-btn" aria-label="Workspace help" data-action="help">${I('help-circle')}</button><span class="avatar small">${data.user.role==='co-founder'?'AR':'VB'}</span></div></header><main id="main-content"></main><footer><span>${I('shield-check')} Personal data stays out of your workspace.</span><span>Company A · Bengaluru <span class="footer-dot">•</span> INR ₹</span></footer></div>`;}
-function render(){const scroll=window.scrollY;$('#app').innerHTML=shell();const content={'Overview':overview,'Reconciliation':reconciliation,'Imports':imports,'Claims':claims,'Returns':returns,'Rate cards':rateCards,'Mapping history':mappingHistory}[view];$('#main-content').innerHTML=content();hydrate();bind();window.scrollTo(0,scroll);}
-function heading(title,subtitle,actions=''){return `<div class="page-heading"><div><div class="page-kicker">YOUR FINANCE, RECONCILED</div><h1>${title}</h1><p>${subtitle}</p></div><div class="heading-actions">${actions}</div></div>`;}
-function periodSelect(){return `<label class="select-wrap">${I('calendar-days')}<select id="period" aria-label="Date range">${['All dates','October 2026','November 2026'].map(x=>`<option ${period===x?'selected':''}>${x}</option>`).join('')}</select>${I('chevron-down')}</label>`;}
-function overview(){const orders=currentOrders(),s=deriveSummary(orders),exception=orders.filter(o=>o.risk>0).sort((a,b)=>b.risk-a.risk),open=orders.filter(o=>o.risk>0&&o.claim!=='Recovered'&&o.claim!=='Rejected'),recovered=orders.filter(o=>o.claim==='Recovered').reduce((s,o)=>s+o.risk,0);const match=s.total?Math.round(s.matched/s.total*1000)/10:0;const top=s.partners.filter(p=>p.risk).sort((a,b)=>b.risk-a.risk).slice(0,5);return heading('Every rupee. Accounted for.','A clear view of your settlements, exceptions, and what comes next.',periodSelect()+button('Upload reports','upload','primary','plus'))+`<div class="demo-strip"><span>${I('sparkles')}<strong>Your workspace is ready to explore.</strong> Sample data · As of 02 Nov 2026</span><button data-action="demo-info">About this data ${I('arrow-up-right')}</button></div><section class="stats-grid"><article class="stat-card risk-stat"><div class="stat-label">Money at risk ${I('arrow-up-right')}</div><div class="stat-value">${money(open.reduce((s,o)=>s+o.risk,0))}<span class="stat-unit">INR</span></div><div class="stat-foot"><span class="mini-pill amber">${num(open.length)} exceptions</span><span>Need your attention</span></div><div class="mini-spark"><svg viewBox="0 0 150 36"><path d="M1 30L15 24L28 27L43 18L57 22L71 12L87 17L100 9L113 12L131 3L149 7"/></svg></div></article><article class="stat-card"><div class="stat-label">Settlements received ${I('wallet')}</div><div class="stat-value">${money(s.received,true)}</div><div class="stat-foot"><span class="green-text">${I('arrow-down-left')} ${num(s.total)} orders</span><span>Across 6 channels</span></div><div class="tiny-bars">${[20,28,22,36,30,40,34,42,39,48,42,51,46,54,50,59,54,62].map(h=>`<b style="height:${h}%"></b>`).join('')}</div></article><article class="stat-card"><div class="stat-label">Fully reconciled ${I('check-check')}</div><div class="stat-value">${match}<span class="percent">%</span></div><div class="progress-track"><span style="width:${match}%"></span></div><div class="stat-foot"><span>${num(s.matched)} of ${num(s.total)} orders</span><span class="muted">Target 98%</span></div></article><article class="stat-card"><div class="stat-label">Recovered through claims ${I('file-check-2')}</div><div class="stat-value">${money(recovered)}</div><div class="stat-foot"><span class="green-text">${orders.filter(o=>o.claim==='Recovered').length} claims recovered</span><span>Year one target ₹30L</span></div><div class="recovery-note">Every resolved gap adds up.</div></article></section><section class="overview-middle"><article class="panel risk-panel"><div class="panel-heading"><div><h2>Where your money is at risk</h2><p>Outstanding exceptions, grouped by partner</p></div><button class="text-btn" data-nav="Claims">View claims ${I('arrow-up-right')}</button></div><div class="risk-chart"><div class="risk-chart-label">PARTNER <span>AMOUNT AT RISK</span></div>${top.map((p,i)=>`<button class="bar-row" data-partner="${esc(p.partner)}"><span class="partner-label"><span class="partner-avatar color-${i}">${p.partner==='Courier Alpha'?'α':p.partner==='Courier Beta'?'β':p.partner.startsWith('Quick')?'Q':p.partner.slice(-1)}</span>${esc(p.partner)}</span><span class="bar-track"><span style="width:${Math.max(4,p.risk/(top[0]?.risk||1)*100)}%;opacity:${1-i*.13}"></span></span><strong>${money(p.risk)}</strong></button>`).join('')||empty('No money at risk','All orders in this period are reconciled.')}<div class="chart-scale"><span>₹0</span><span>${money((top[0]?.risk||0)/2,true)}</span><span>${money(top[0]?.risk||0,true)}</span></div></div><div class="panel-note"><span class="square-key"></span> Unpaid, short-paid, freight & missing returns <span>${I('shield-check')} TCS / TDS excluded</span></div></article><article class="panel action-panel"><div class="panel-heading"><div><h2>Let’s close the gaps</h2><p>Your next best actions</p></div><span class="count-circle">3</span></div>${[['Unpaid past due','Follow up on overdue COD', 'Remittances that have crossed the due date.','clock','amber'],['Return not received','Locate missing returns','No warehouse receipt after the return window.','rotate-ccw','purple'],['Short-paid','Review settlement gaps','Check deductions against agreed rates.','file-check-2','green']].map(([status,title,sub,icon,color])=>{const a=orders.filter(o=>o.issues.includes(status)&&o.claim!=='Recovered');return `<button class="action-row" data-status="${status}"><span class="action-icon ${color}">${I(icon)}</span><span><strong>${title}</strong><small>${sub}</small><span class="action-meta">${a.length} orders <span>·</span> ${money(a.reduce((s,o)=>s+o.risk,0))} at risk</span></span>${I('chevron-right')}</button>`}).join('')}<div class="action-bottom">${I('check-circle-2')} Small follow-ups. A healthier bottom line.</div></article></section><section class="panel exceptions-panel"><div class="panel-heading"><div><h2>Exceptions worth a closer look <span class="heading-count">${exception.length}</span></h2><p>The highest-value gaps, ready for your review</p></div><button class="text-btn" data-action="exceptions">View all exceptions ${I('arrow-right')}</button></div>${orderTable(exception.slice(0,5),false,true)}<div class="table-caption">${I('layers')} Every difference traces back to an order and its source report.<span>Gaps over ₹10 are flagged</span></div></section><section class="tax-note">${I('shield-check')}<div><strong>Deductions aren’t leakage.</strong> GST TCS and income tax TDS are shown separately in your partner summary.</div><button class="text-btn" data-action="tax">View tax summary ${I('arrow-up-right')}</button></section>`;}
-function deriveSummary(orders){const s={total:orders.length,received:orders.reduce((s,o)=>s+o.received,0),matched:orders.filter(o=>o.status==='Settled').length,partners:[]};for(const p of partners){const a=orders.filter(o=>o.partner===p);s.partners.push({partner:p,risk:a.filter(o=>o.claim!=='Recovered'&&o.claim!=='Rejected').reduce((s,o)=>s+o.risk,0)});}return s;}
-function orderTable(orders,checks=false,short=false){return `<div class="table-scroll"><table class="data-table"><thead><tr>${checks?'<th class="check-cell"><input type="checkbox" id="check-all" aria-label="Select all visible orders"></th>':''}<th>Order / channel</th><th>Partner</th><th class="numeric">Expected</th><th class="numeric">Received</th><th class="numeric">${short?'At risk':'Difference'}</th><th>Status</th><th>${short?'Age':''}</th></tr></thead><tbody>${orders.map(o=>`<tr>${checks?`<td class="check-cell"><input type="checkbox" data-select="${esc(o.id)}" ${selected.has(o.id)?'checked':''} aria-label="Select ${esc(o.id)}"></td>`:''}<td><button class="order-link" data-order="${esc(o.id)}">${esc(o.id)}</button><small>${esc(o.channel)} <span class="td-dot">·</span> ${esc(o.payment)}</small></td><td><span class="partner-cell">${esc(o.partner)}</span></td><td class="numeric">${money(o.expected)}</td><td class="numeric">${money(o.received)}</td><td class="numeric ${o.risk?'risk-number':''}">${short?money(o.risk):`${o.difference<0?'−':o.difference>0?'+':''}${money(Math.abs(o.difference))}`}</td><td>${pill(o.status)}${o.issues.length>1?`<span class="extra-issues" title="${esc(o.issues.join(', '))}">+${o.issues.length-1}</span>`:''}</td><td>${short?`<span class="age ${o.age>14?'old':''}">${o.age}d</span>`:`<button class="icon-btn" data-order="${esc(o.id)}" aria-label="View ${esc(o.id)}">${I('arrow-up-right')}</button>`}</td></tr>`).join('')}</tbody></table></div>${!orders.length?empty('No orders found','Try another search, or clear your filters.',button('Clear filters','clear')):''}`;}
-function filters(){return `<div class="table-toolbar"><label class="search-input">${I('search')}<input id="search" placeholder="Search order ID or partner…" value="${esc(q)}" aria-label="Search orders"><span>⌕</span></label><div class="filter-group"><label class="select-wrap">${I('filter')}<select id="status-filter" aria-label="Filter by status">${['All statuses','Settled','Short-paid','Unpaid past due','Freight overcharged','Return not received','Awaiting settlement'].map(x=>`<option ${filter===x?'selected':''}>${x}</option>`).join('')}</select></label><label class="select-wrap"><select id="partner-filter" aria-label="Filter by partner">${['All partners',...partners].map(x=>`<option ${partner===x?'selected':''}>${x}</option>`).join('')}</select></label>${(q||filter!=='All statuses'||partner!=='All partners')?'<button class="text-btn" data-action="clear">Clear</button>':''}</div></div>`;}
-function pagination(total){const pages=Math.max(1,Math.ceil(total/12));page=Math.min(page,pages);return `<div class="pagination"><span>${total?`${(page-1)*12+1}–${Math.min(page*12,total)}`:'0'} of ${num(total)} orders</span><span><button class="icon-btn" aria-label="Previous page" data-action="previous" ${page===1?'disabled':''}>${I('chevron-left')}</button><span>Page ${page} of ${pages}</span><button class="icon-btn" aria-label="Next page" data-action="next" ${page===pages?'disabled':''}>${I('chevron-right')}</button></span></div>`;}
-function reconciliation(){let a=currentOrders();if(activeTab==='Exceptions')a=a.filter(o=>o.issues.length);if(activeTab==='Settled')a=a.filter(o=>o.status==='Settled');const pages=Math.max(1,Math.ceil(a.length/12));page=Math.min(page,pages);return heading('One order. The whole picture.','Match what you sold with what you actually received.',button('Export results','export-orders','secondary','download')+button('Upload reports','upload','primary','plus'))+`<div class="summary-strip"><span><strong>${num(data.orders.length)}</strong> total orders</span><span><b class="green-text">${num(data.orders.filter(o=>o.status==='Settled').length)}</b> fully settled</span><span><b class="risk-number">${num(data.orders.filter(o=>o.issues.length).length)}</b> exceptions</span><span>${I('shield-check')} ₹10 matching tolerance</span></div><section class="panel"><div class="tabs">${['All orders','Exceptions','Settled'].map(t=>`<button data-tab="${t}" class="${t===activeTab?'active':''}">${t}</button>`).join('')}<span class="tabs-end">${I('check-check')} Rule-based matching</span></div>${filters()}${orderTable(a.slice((page-1)*12,page*12))}${pagination(a.length)}</section><div class="quiet-note">${I('alert-circle')} Expected amount = order value − channel fee − commission − TCS − TDS. Returned orders use the return fee.</div>`;}
-function claims(){const a=currentOrders().filter(o=>o.risk>0),open=a.filter(o=>o.claim==='Open'),inProgress=a.filter(o=>o.claim==='In progress'),recovered=a.filter(o=>o.claim==='Recovered');const pages=Math.max(1,Math.ceil(a.length/12));page=Math.min(page,pages);return heading('Turn exceptions into recoveries.','A partner-ready claims list. Every gap backed by evidence.',button('Export evidence','export-claims','primary','download'))+`<div class="claim-stats"><div><span>Open claims</span><strong>${money(open.reduce((s,o)=>s+o.risk,0))}</strong><small>${open.length} orders to follow up</small></div><div><span>In progress</span><strong>${money(inProgress.reduce((s,o)=>s+o.risk,0))}</strong><small>${inProgress.length} orders being reviewed</small></div><div><span>Recovered</span><strong class="green-text">${money(recovered.reduce((s,o)=>s+o.risk,0))}</strong><small>${recovered.length} resolved claims</small></div><div class="claim-explain">${I('file-check-2')}<strong>Ready for your partner.</strong><p>Export order details, expected calculations, source rows and deductions in one file.</p></div></div><section class="panel"><div class="panel-heading"><div><h2>Claims workspace <span class="heading-count">${a.length}</span></h2><p>Track follow-ups here. Claim filing stays with your team.</p></div></div>${filters()}<div class="bulk-bar"><span>${selected.size} selected</span><label>Update status <select id="claim-status" aria-label="Claim status"><option>In progress</option><option>Recovered</option><option>Rejected</option><option>Open</option></select></label>${button('Apply to selected','update-claims','secondary','check')}</div><div class="table-scroll"><table class="data-table"><thead><tr><th class="check-cell"><input id="check-all" type="checkbox" aria-label="Select all visible claims"></th><th>Order / partner</th><th>Reason</th><th class="numeric">At risk</th><th>Claim status</th><th>Age</th><th></th></tr></thead><tbody>${a.slice((page-1)*12,page*12).map(o=>`<tr><td class="check-cell"><input type="checkbox" data-select="${esc(o.id)}" ${selected.has(o.id)?'checked':''} aria-label="Select ${esc(o.id)}"></td><td><button class="order-link" data-order="${esc(o.id)}">${esc(o.id)}</button><small>${esc(o.partner)}</small></td><td>${pill(o.status)}</td><td class="numeric risk-number">${money(o.risk)}</td><td>${pill(o.claim)}</td><td><span class="age ${o.age>14?'old':''}">${o.age}d</span></td><td><button class="icon-btn" aria-label="View evidence for ${esc(o.id)}" data-order="${esc(o.id)}">${I('arrow-up-right')}</button></td></tr>`).join('')}</tbody></table></div>${!a.length?empty('Nothing to claim','No exceptions match your filters.'):''}${pagination(a.length)}</section><section class="panel aging-panel"><div class="panel-heading"><div><h2>Money at risk, by age</h2><p>Prioritise the oldest outstanding gaps</p></div></div><div class="aging-grid">${['0–7 days','8–14 days','15–30 days','31+ days'].map((label,i)=>{const subset=a.filter(o=>o.claim!=='Recovered'&&o.claim!=='Rejected'&&(i===0?o.age<=7:i===1?o.age>7&&o.age<=14:i===2?o.age>14&&o.age<=30:o.age>30));return `<div><span>${label}</span><strong>${money(subset.reduce((s,o)=>s+o.risk,0))}</strong><small>${subset.length} exceptions</small></div>`}).join('')}</div></section>`;}
-function imports(){return heading('Bring your reports together.','Upload, map, and reconcile. Less spreadsheet work. More clarity.',button('Mapping history','mapping-history','secondary','history'))+`<section class="import-layout"><article class="panel upload-panel"><div class="panel-heading"><div><h2>Upload a partner report</h2><p>Your original file stays on this device. Only mapped fields are imported.</p></div><span class="step-tag">STEP 01 / 03</span></div><div class="upload-settings"><label>Report type<select id="upload-type">${Object.keys(fields).map(x=>`<option>${x}</option>`).join('')}</select></label><label>Partner / source<select id="upload-source">${['Website',...partners].map(x=>`<option>${x}</option>`).join('')}</select></label></div><label class="dropzone" id="dropzone"><input id="file-input" type="file" accept=".csv,.xlsx,.xls" aria-label="Choose CSV or Excel report"><span class="upload-illustration">${I('file-spreadsheet')}${I('plus')}</span><h3>Drop your report here</h3><p>or <span>browse files</span> from your computer</p><div class="file-types"><span>CSV</span><span>XLSX</span><span>XLS</span><small>Up to 25 MB · 1,00,000 rows</small></div></label><div class="upload-foot">${I('shield-check')} No customer names, phone numbers, or addresses are saved.<a href="/sample-orders.csv" download>Download sample ${I('download')}</a></div></article><aside class="panel import-guide"><span class="guide-icon">${I('layers')}</span><h2>A little structure.<br>A much faster close.</h2><div class="guide-step"><span>1</span><div><strong>Choose a report</strong><p>Orders, settlements, COD, freight or warehouse receipts.</p></div></div><div class="guide-step"><span>2</span><div><strong>Review your column mapping</strong><p>Get suggestions, check 20 rows, then approve. You’re always in control.</p></div></div><div class="guide-step"><span>3</span><div><strong>Let the rules do the matching</strong><p>Expected amounts and exceptions update automatically.</p></div></div><div class="guide-note">${I('rotate-ccw')} Saved mappings are versioned, so changed formats don’t slow you down.</div></aside></section><section class="panel"><div class="panel-heading"><div><h2>Import history <span class="heading-count">${data.uploads.length}</span></h2><p>Every report, with a clear audit trail</p></div></div><div class="table-scroll"><table class="data-table"><thead><tr><th>Report</th><th>Source</th><th>Type</th><th class="numeric">Rows</th><th>Imported</th><th>Status</th></tr></thead><tbody>${data.uploads.map(u=>`<tr><td><span class="file-name">${I('file-spreadsheet')}${esc(u.name)}</span></td><td>${esc(u.source)}</td><td>${esc(u.type)}</td><td class="numeric">${num(u.rows)}</td><td>${date(u.date)}</td><td>${pill('Settled').replace('Settled','Completed')}</td></tr>`).join('')}</tbody></table></div></section>`;}
-function returns(){const a=currentOrders().filter(o=>/return/i.test(o.delivery)),missing=a.filter(o=>!o.receipt);return heading('Bring every return home.','Match returns against warehouse scans. Catch missing parcels early.',button('Upload receipt scans','upload-returns','primary','plus'))+`<div class="summary-strip"><span><strong>${a.length}</strong> returns tracked</span><span><b class="green-text">${a.filter(o=>o.receipt).length}</b> received at warehouse</span><span><b class="risk-number">${missing.filter(o=>o.status==='Return not received').length}</b> past the return window</span><span>${I('clock')} 7-day receipt window by default</span></div><section class="panel">${filters()}<div class="table-scroll"><table class="data-table"><thead><tr><th>Order / channel</th><th>Partner</th><th class="numeric">Order value</th><th>Warehouse scan</th><th>Return age</th><th>Action</th></tr></thead><tbody>${a.map(o=>`<tr><td><button class="order-link" data-order="${esc(o.id)}">${esc(o.id)}</button><small>${esc(o.channel)}</small></td><td>${esc(o.partner)}</td><td class="numeric">${money(o.value)}</td><td>${o.receipt?`<span class="green-text">${I('package-check')} ${esc(o.receipt)}</span>`:pill('Return not received')}</td><td>${o.age} days</td><td>${!o.receipt?`<button class="text-btn" data-receipt="${esc(o.id)}">Record receipt ${I('plus')}</button>`:'<span class="muted">Received</span>'}</td></tr>`).join('')}</tbody></table></div>${!a.length?empty('No returns here','No returns match your current filters.'):''}</section>`;}
-function rateCards(){const founder=data.user.role==='co-founder';return heading('The right amount starts here.','Agreed channel rates power every expected settlement.',founder?button('Save rate cards','save-rates','primary','check'):pill('Co-founder access to edit'))+`<div class="info-banner">${I('alert-circle')}<div><strong>Illustrative rates, ready for your agreements.</strong> These are sample commercial terms, not statutory tax advice. The Marketplace 1 fixed fee reproduces the brief’s ₹899 expected amount. Changes recalculate all orders.</div></div><section class="rate-grid">${data.rates.map((r,i)=>`<article class="panel rate-card" data-rate="${i}"><div class="rate-heading"><span class="partner-avatar color-${i%5}">${i===0?'W':i<4?'M'+i:'Q'+(i-3)}</span><h2>${esc(r.channel)}</h2><span class="mini-pill green">Active</span></div><div class="rate-fields">${[['commission','Commission','%'],['fee','Fixed fee','₹'],['freight','Courier freight allowance','₹'],['returnFee','Return fee','₹'],['tcs','GST TCS','%'],['tds','Income tax TDS','%'],['dueDays','Settlement due','days'],['returnDays','Return receipt window','days']].map(([key,title,unit])=>`<label>${title}<div class="rate-input"><input type="number" min="0" step="0.01" data-key="${key}" aria-label="${r.channel} ${title}" value="${r[key]}" ${founder?'':'disabled'}><span>${unit}</span></div></label>`).join('')}</div><div class="rate-formula">Expected = value − fees − commission − TCS − TDS</div></article>`).join('')}</section><div class="quiet-note">${I('shield-check')} Financial matching uses rules. No AI model calculates your expected amounts.</div>`;}
-function mappingHistory(){return heading('Formats change. Your work stays.','Approved column mappings, versioned by partner and report type.')+`<section class="panel"><div class="panel-heading"><div><h2>Saved mapping versions</h2><p>The most recent approved version is used for each source.</p></div></div>${data.mappings.length?`<div class="table-scroll"><table class="data-table"><thead><tr><th>Source / report</th><th>Version</th><th>Mapped fields</th><th>Approved by</th><th>Date</th><th></th></tr></thead><tbody>${[...data.mappings].reverse().map(m=>`<tr><td><strong>${esc(m.source)}</strong><small>${esc(m.type)}</small></td><td><span class="version">v${m.version}</span></td><td>${Object.keys(m.mapping).length} fields</td><td>${esc(m.approvedBy)}</td><td>${date(m.date)}</td><td><button class="text-btn" data-mapping="${m.id}">View mapping ${I('arrow-up-right')}</button></td></tr>`).join('')}</tbody></table></div>`:empty('Your first mapping starts with an upload','Approve your column mapping once. Reuse it on the next partner report.',button('Upload a report','upload','primary','plus'))}</section><section class="panel audit-panel"><div class="panel-heading"><div><h2>Workspace activity</h2><p>A simple record of who changed what</p></div></div>${data.audit.length?data.audit.slice(0,15).map(a=>`<div class="audit-row">${I('history')}<span><strong>${esc(a.action)}</strong><small>${esc(a.by)} · ${date(a.date)}</small></span>${I('check')}</div>`).join(''):empty('A fresh start','Imports, rate changes and claim updates will appear here.')}</section>`;}
-function navigate(next){view=next;q='';filter='All statuses';partner='All partners';period='All dates';page=1;selected.clear();document.body.classList.remove('menu-open');window.scrollTo(0,0);render();}
-function bind(){
- $$('[data-nav]').forEach(el=>el.onclick=e=>{e.preventDefault();navigate(el.dataset.nav);});
- $$('[data-action]').forEach(el=>el.onclick=()=>action(el.dataset.action));
- $$('[data-order]').forEach(el=>el.onclick=()=>orderDetail(el.dataset.order));
- $$('[data-status]').forEach(el=>el.onclick=()=>{navigate('Reconciliation');filter=el.dataset.status;render();});
- $$('[data-partner]').forEach(el=>el.onclick=()=>{navigate('Claims');partner=el.dataset.partner;render();});
- $$('[data-receipt]').forEach(el=>el.onclick=()=>receiptDialog(el.dataset.receipt));
- $$('[data-mapping]').forEach(el=>el.onclick=()=>mappingDialog(el.dataset.mapping));
- $$('[data-tab]').forEach(el=>el.onclick=()=>{activeTab=el.dataset.tab;page=1;render();});
- if($('#period'))$('#period').onchange=e=>{period=e.target.value;render();};
- if($('#status-filter'))$('#status-filter').onchange=e=>{filter=e.target.value;page=1;render();};
- if($('#partner-filter'))$('#partner-filter').onchange=e=>{partner=e.target.value;page=1;render();};
- if($('#search'))$('#search').oninput=e=>{q=e.target.value;page=1;const pos=e.target.selectionStart;render();$('#search').focus();$('#search').setSelectionRange(pos,pos);};
- $$('[data-select]').forEach(el=>el.onchange=()=>{el.checked?selected.add(el.dataset.select):selected.delete(el.dataset.select);const bar=$('.bulk-bar>span');if(bar)bar.textContent=selected.size+' selected';});
- if($('#check-all'))$('#check-all').onchange=e=>{$$('[data-select]').forEach(el=>{el.checked=e.target.checked;el.checked?selected.add(el.dataset.select):selected.delete(el.dataset.select);});const bar=$('.bulk-bar>span');if(bar)bar.textContent=selected.size+' selected';};
- if($('#file-input'))$('#file-input').onchange=e=>readUpload(e.target.files[0]);
- if($('#dropzone')){const zone=$('#dropzone');zone.ondragover=e=>{e.preventDefault();zone.classList.add('dragover');};zone.ondragleave=()=>zone.classList.remove('dragover');zone.ondrop=e=>{e.preventDefault();zone.classList.remove('dragover');readUpload(e.dataTransfer.files[0]);};}
+function toast(message, error = false) {
+  $("#toast").innerHTML =
+    I(error ? "alert-circle" : "check-circle-2") + esc(message);
+  $("#toast").className = "show" + (error ? " error" : "");
+  hydrate();
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => ($("#toast").className = ""), 4500);
 }
-async function action(name){try{
- if(name==='upload')return navigate('Imports');if(name==='mapping-history')return navigate('Mapping history');
- if(name==='upload-returns'){navigate('Imports');$('#upload-type').value='Returns';return;}
- if(name==='mobile-menu')return document.body.classList.toggle('menu-open');
- if(name==='exceptions'){navigate('Reconciliation');activeTab='Exceptions';render();return;}
- if(name==='clear'){q='';filter='All statuses';partner='All partners';page=1;return render();}
- if(name==='next'){page++;selected.clear();return render();}if(name==='previous'){page=Math.max(1,page-1);selected.clear();return render();}
- if(name==='export-orders')return exportEvidence(currentOrders(),'reconciliation');
- if(name==='export-claims')return exportEvidence(currentOrders().filter(o=>o.risk>0&&(!selected.size||selected.has(o.id))),'claims-evidence');
- if(name==='update-claims'){if(!selected.size)return toast('Select at least one claim first.',true);const status=$('#claim-status').value;await request('claim',{ids:[...selected],status});selected.clear();await load();return toast('Claim statuses updated.');}
- if(name==='save-rates'){const rates=data.rates.map((r,i)=>({...r,...Object.fromEntries($$(`[data-rate="${i}"] input`).map(el=>[el.dataset.key,Number(el.value)]))}));await request('rates',{rates});await load();return toast('Rate cards saved. Expected amounts recalculated.');}
- if(name==='tax')return taxDialog();if(name==='help')return helpDialog();if(name==='demo-info')return demoDialog();if(name==='workspace')return modal('Company A','Finance workspace',`<div class="workspace-details"><span class="workspace-icon">A</span><h3>Company A · Bengaluru</h3><p>Home textiles · 6 sales channels · 2 courier aggregators</p><div class="info-banner">This demo uses synthetic orders and illustrative commercial rates. No real customer data is included.</div></div>`);
- if(name==='account')return modal('Your workspace account',data.user.role,`<div class="account-details"><span class="avatar">${data.user.role==='co-founder'?'AR':'VB'}</span><h3>${esc(data.user.name)}</h3><p>${esc(data.user.email)}</p><p>${data.user.role==='co-founder'?'You can manage rate cards, roll back mappings and work through claims.':'You can upload reports, approve mappings, reconcile orders and manage claims.'}</p>${button('Sign out','logout','secondary','log-out')}</div>`);
- if(name==='logout'){await request('logout',{});closeModal();data=null;return login();}
- }catch(e){toast(e.message,true);}}
-function modal(title,sub,body,kind=''){const prev=document.activeElement;$('#overlay').innerHTML=`<div class="modal-backdrop"><section class="modal ${kind}" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1"><header class="modal-header"><div><h2 id="modal-title">${title}</h2><p>${sub}</p></div><button class="icon-btn" id="close-modal" aria-label="Close dialog">${I('x')}</button></header><div class="modal-body">${body}</div></section></div>`;hydrate();$('#close-modal').onclick=closeModal;$('.modal-backdrop').onclick=e=>{if(e.target===$('.modal-backdrop'))closeModal();};$('#overlay').previousFocus=prev;$('.modal').focus();document.body.classList.add('modal-open');$$('#overlay [data-action]').forEach(el=>el.onclick=()=>action(el.dataset.action));}
-function closeModal(){$('#overlay').innerHTML='';document.body.classList.remove('modal-open');$('#overlay').previousFocus?.focus();}
-document.addEventListener('keydown',e=>{if(!$('#overlay').innerHTML)return;if(e.key==='Escape')closeModal();if(e.key==='Tab'){const a=$$('#overlay button:not([disabled]),#overlay input,#overlay select,#overlay a[href]');if(e.shiftKey&&document.activeElement===a[0]){e.preventDefault();a.at(-1)?.focus();}else if(!e.shiftKey&&document.activeElement===a.at(-1)){e.preventDefault();a[0]?.focus();}}});
-function orderDetail(id){const o=data.orders.find(o=>o.id===id),r=o.rate;modal(esc(o.id),'Order detail & reconciliation evidence',`<div class="detail-status">${pill(o.status)}<span>${esc(o.channel)} · ${esc(o.payment)}</span><span>${date(o.date)} 2026</span></div><div class="detail-amounts"><div><span>Expected</span><strong>${money(o.expected)}</strong></div><div><span>Received</span><strong>${money(o.received)}</strong></div><div><span>Money at risk</span><strong class="risk-number">${money(o.risk)}</strong></div></div><h3 class="section-title">The calculation</h3><div class="calculation">${(/return/i.test(o.delivery)?[['Return fee',-r.returnFee]]:[['Order value',o.value],['Channel commission ('+r.commission+'%)',-o.value*r.commission/100],['Fixed fee',-r.fee],['GST TCS ('+r.tcs+'%)',-o.tcs],['Income tax TDS ('+r.tds+'%)',-o.tds]]).map(([label,v])=>`<div><span>${label}</span><strong>${v<0?'−':''}${money(Math.abs(v))}</strong></div>`).join('')}<div class="calculation-total"><strong>Expected settlement</strong><strong>${money(o.expected)}</strong></div></div>${o.issues.length?`<h3 class="section-title">Why this order was flagged</h3>${o.issues.map(issue=>`<div class="issue-row">${I('alert-circle')}<span>${esc(issue)}${issue==='Freight overcharged'?` · billed ${money(o.freight)}, allowance ${money(r.freight)}`:issue==='Return not received'?` · no receipt after ${r.returnDays} days`:issue==='Unpaid past due'?` · ${o.age} days old, ${r.dueDays}-day settlement window`:` · settlement difference ${money(o.difference)}`}</span></div>`).join('')}`:''}<h3 class="section-title">Source evidence</h3><div class="evidence-box">${I('file-spreadsheet')}<span><strong>${esc(o.source)}</strong><small>Row ${o.sourceRow} · ${esc(o.partner)} · Original order ID preserved</small></span></div><div class="detail-footer"><span class="muted">Claim status: ${esc(o.claim)}</span><button class="btn primary" id="export-one">${I('download')} Export evidence</button></div>`,'drawer');$('#export-one').onclick=()=>exportEvidence([o],'evidence-'+o.id);}
-function exportEvidence(orders,name){if(!orders.length)return toast('No matching orders to export.',true);const header=['Order ID','Channel','Partner','Date','Payment','Delivery','Order value INR','Expected INR','Received INR','Difference INR','Freight billed INR','Freight expected INR','Freight gap INR','GST TCS INR','Income tax TDS INR','Money at risk INR','Issues','Claim status','Source file','Source row','Receipt'];const rows=orders.map(o=>[o.id,o.channel,o.partner,o.date,o.payment,o.delivery,o.value,o.expected,o.received,o.difference,o.freight,o.rate.freight,o.freightGap,o.tcs,o.tds,o.risk,o.issues.join('; '),o.claim,o.source,o.sourceRow,o.receipt]);downloadCsv([header,...rows],name);toast('Evidence exported for '+orders.length+' orders.');}
-function downloadCsv(rows,name){const csv='\uFEFF'+rows.map(row=>row.map(v=>{let s=String(v??'');if(/^[=+@\t\r]/.test(s)||(/^\-/.test(s)&&!/^\-\d+(\.\d+)?$/.test(s)))s="'"+s;return '"'+s.replaceAll('"','""')+'"';}).join(',')).join('\r\n');const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='settle-'+name+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),5000);}
-function taxDialog(){const summaries=partners.map(p=>{const a=data.orders.filter(o=>o.partner===p);return {partner:p,tcs:a.reduce((s,o)=>s+o.tcs,0),tds:a.reduce((s,o)=>s+o.tds,0)};});modal('Tax deductions, kept separate.','Partner-wise GST TCS and income tax TDS',`<div class="info-banner">${I('shield-check')} These deductions are already included in expected settlements. They are not counted as leakage.</div><div class="table-scroll"><table class="data-table"><thead><tr><th>Partner</th><th class="numeric">GST TCS</th><th class="numeric">Income tax TDS</th></tr></thead><tbody>${summaries.map(p=>`<tr><td>${p.partner}</td><td class="numeric">${money(p.tcs)}</td><td class="numeric">${money(p.tds)}</td></tr>`).join('')}</tbody></table></div><div class="detail-footer"><span class="muted">Illustrative rates from your rate cards</span><button class="btn primary" id="export-tax">${I('download')} Export summary</button></div>`);$('#export-tax').onclick=()=>downloadCsv([['Partner','GST TCS INR','Income tax TDS INR'],...summaries.map(p=>[p.partner,p.tcs,p.tds])],'tax-summary');}
-function helpDialog(){modal('A clearer close starts here.','A quick guide to your reconciliation workspace',`<div class="help-steps">${[['01','Import your orders first','Choose a source, upload a CSV or Excel file, then review the suggested column mapping. The first 20 rows are shown before you approve.'],['02','Add partner reports','Upload settlement, COD, freight and receipt reports. Order IDs link each report to the order. An import with errors saves nothing.'],['03','Review your exceptions','Rules compare received amounts with expected amounts from rate cards. Gaps over ₹10, overdue payments and missing returns surface here.'],['04','Export evidence and follow up','Select claims and export the calculation, source rows and deductions. Mark a claim in progress or recovered after your team confirms it.']].map(([n,t,p])=>`<div class="help-step"><span>${n}</span><div><h3>${t}</h3><p>${p}</p></div></div>`).join('')}</div><div class="info-banner">Co-founders can edit rate cards and restore mapping versions. Finance executives can import reports, approve mappings, reconcile and manage claims.</div>`);}
-function demoDialog(){modal('Real flows. Illustrative numbers.','What to expect in this demo',`<p>This workspace starts with 480 synthetic orders across six channels, including the three orders from the brief. The reference date is <strong>2 November 2026</strong>.</p><p>Commercial fees, deductions, courier allowances and seven-day windows are assumptions you can inspect in Rate cards. Amounts come from the reconciliation rules, not from a fixed dashboard.</p><p>Uploads, mappings, claim statuses, rate cards and receipt scans are stored in the database. No payments are moved and no claims are sent to partners.</p><div class="info-banner">The mapping assistant proposes fields from header patterns. It can be uncertain: every proposal must be reviewed and approved.</div>`);}
-function receiptDialog(id){modal('Record a warehouse receipt',esc(id),`<form id="receipt-form"><label class="form-label">Receipt / scan reference<input id="receipt" required maxlength="100" placeholder="e.g. WH-SCAN-1052"></label><p class="muted">Only record a scan after the warehouse has confirmed receipt.</p><button class="btn primary" type="submit">${I('package-check')} Save receipt</button></form>`);$('#receipt-form').onsubmit=async e=>{e.preventDefault();try{await request('receipt',{id,receipt:$('#receipt').value});closeModal();await load();toast('Warehouse receipt recorded.');}catch(e){toast(e.message,true);}};}
-function mappingDialog(id){const m=data.mappings.find(m=>m.id===id);modal(esc(m.source)+' · v'+m.version,esc(m.type)+' report mapping',`<div class="calculation">${Object.entries(m.mapping).map(([f,c])=>`<div><span>${esc(f)}</span><strong>${esc(c)}</strong></div>`).join('')}</div><p class="muted">Approved by ${esc(m.approvedBy)} · ${date(m.date)}</p>${data.user.role==='co-founder'?'<button class="btn primary" id="rollback">Restore as a new version</button>':'<p class="quiet-note">Only the co-founder can restore a mapping version.</p>'}`);if($('#rollback'))$('#rollback').onclick=async()=>{try{await request('rollback',{id});closeModal();await load();toast('Mapping restored as a new version.');}catch(e){toast(e.message,true);}};}
-async function readUpload(file){if(!file)return;if(file.size>25*1024*1024)return toast('Choose a file smaller than 25 MB.',true);if(!/\.(csv|xlsx|xls)$/i.test(file.name))return toast('Choose a CSV or Excel file.',true);const type=$('#upload-type').value,source=$('#upload-source').value;try{toast('Reading report and suggesting mappings…');const workbook=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});const rows=XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]],{defval:'',raw:false});if(!rows.length||rows.length>100000)throw new Error('Choose a file with between 1 and 1,00,000 data rows.');const headers=Object.keys(rows[0]);const suggestion=await request('suggest',{headers,type});const saved=[...data.mappings].reverse().find(m=>m.type===type&&m.source===source&&Object.values(m.mapping).every(c=>headers.includes(c)));draft={file,rows,headers,type,source,mapping:saved?{...saved.mapping}:Object.fromEntries(suggestion.suggestions.map(s=>[s.field,s.column])),suggestions:suggestion.suggestions,saved};showMapping();}catch(e){toast(e.message,true);}}
-const fieldLabels={id:'Order ID',channel:'Sales channel',value:'Order value',payment:'Payment method',delivery:'Delivery status',date:'Order date',partner:'Partner / courier',received:'Amount received',freight:'Freight charged',receipt:'Warehouse receipt'};
-function showMapping(){const d=draft;modal('A good match starts with good columns.',`STEP 02 / 03 · ${esc(d.file.name)} · ${num(d.rows.length)} rows`,`${d.saved?`<div class="info-banner green">${I('check-circle-2')} Saved mapping v${d.saved.version} loaded for ${esc(d.source)}. Review it before continuing.</div>`:`<div class="info-banner">${I('sparkles')} <span><strong>Mapping suggestions, ready for your review.</strong> Header-based suggestions can be wrong. Check every field, then preview your data.</span></div>`}<div class="mapping-grid">${fields[d.type].map(f=>{const s=d.suggestions.find(x=>x.field===f);return `<label>${fieldLabels[f]} <span class="required">*</span><select data-map="${f}"><option value="">Select a column</option>${d.headers.map(h=>`<option value="${esc(h)}" ${d.mapping[f]===h?'selected':''}>${esc(h)}</option>`).join('')}</select><small>${d.saved?'Saved mapping':s?.confidence>=.9?'Suggested · high confidence':'Review required'}</small></label>`}).join('')}</div><div class="preview-heading"><h3>Preview · first ${Math.min(20,d.rows.length)} rows</h3><span>Only these mapped fields will be saved</span></div><div class="preview-table" id="preview-table"></div><div id="import-errors" role="alert"></div><div class="approve-footer"><label class="approve-check"><input type="checkbox" id="approve">I reviewed the mapping and preview rows.</label><button class="btn primary" id="approve-import" disabled>${I('check')} Approve & import</button></div>`,'wide');mappingPreview();$$('[data-map]').forEach(el=>el.onchange=()=>{d.mapping[el.dataset.map]=el.value;$('#approve').checked=false;$('#approve-import').disabled=true;mappingPreview();});$('#approve').onchange=e=>$('#approve-import').disabled=!e.target.checked||fields[d.type].some(f=>!d.mapping[f]);$('#approve-import').onclick=commitImport;}
-function mappingPreview(){const d=draft;$('#preview-table').innerHTML=`<table class="data-table"><thead><tr><th>Row</th>${fields[d.type].map(f=>`<th>${fieldLabels[f]}</th>`).join('')}</tr></thead><tbody>${d.rows.slice(0,20).map((r,i)=>`<tr><td>${i+2}</td>${fields[d.type].map(f=>`<td>${esc(r[d.mapping[f]]||'—')}</td>`).join('')}</tr>`).join('')}</tbody></table>`;}
-async function commitImport(){const d=draft,b=$('#approve-import');b.disabled=true;b.textContent='Importing and reconciling…';try{const result=await request('import',{type:d.type,source:d.source,name:d.file.name,mapping:d.mapping,rows:d.rows.map(r=>Object.fromEntries(Object.values(d.mapping).map(c=>[c,r[c]])))});closeModal();await load();toast(`${num(result.imported)} rows imported. Your reconciliation is up to date.`);draft=null;}catch(e){$('#import-errors').innerHTML=`<div class="error-box"><strong>${esc(e.message)}</strong>${e.details?e.details.slice(0,8).map(x=>`<p>Row ${x.row}: ${esc(x.error)}</p>`).join(''):''}</div>`;b.disabled=false;b.textContent='Approve & import';}}
-function login(){const roles=[['finance','Finance executive','Import reports, reconcile and follow up'],['founder','Co-founder','Manage rates and review recoveries']];$('#app').innerHTML=`<div class="login-page"><aside class="login-story"><a class="brand" href="/"><span class="brand-mark">s<span>•</span></span>settle.</a><div class="login-story-copy"><div class="eyebrow">A CLEARER CLOSE STARTS HERE</div><h1>Every order.<br>Every payment.<br><em>Everything in order.</em></h1><p>Bring your reports together.<br>Find the gaps. Get back what’s yours.</p><div class="login-visual"><span class="visual-order">${I('file-spreadsheet')} ORD-W-204118 <small>Order value</small><strong>₹1,499</strong></span><span class="visual-line"></span><span class="visual-match">${I('check-check')} Reconciled</span></div></div><div class="login-story-foot">Built for the people behind the numbers.<span>Company A · Bengaluru</span></div></aside><main class="login-form-side"><div class="login-form"><span class="mini-pill green">${I('shield-check')} Secure finance workspace</span><h2>Welcome to a<br>clearer picture.</h2><p>Sign in to your Company A workspace.</p><form id="login-form"><label class="form-label">Email address<input id="login-email" type="email" autocomplete="username" required placeholder="you@company.com" value="finance@demo.settle"></label><label class="form-label">Password<input id="login-password" type="password" autocomplete="current-password" required value="demo-settle"></label><div id="login-error" role="alert"></div><button class="btn primary login-submit" type="submit">Sign in to workspace ${I('arrow-right')}</button></form><div class="demo-login"><span>EXPLORE THE DEMO</span><p>Choose a role. Demo credentials are filled in for you.</p>${roles.map(([role,title,sub])=>`<button class="demo-role ${role==='finance'?'selected':''}" data-role="${role}"><span class="role-icon">${I(role==='founder'?'sliders-horizontal':'file-check-2')}</span><span><strong>${title}</strong><small>${sub}</small></span>${I('arrow-up-right')}</button>`).join('')}<small class="demo-password">Demo password: <code>demo-settle</code> · Synthetic data only</small></div><div class="login-bottom">${I('shield-check')} Customer personal data is never required to reconcile.</div></div></main></div>`;hydrate();$$('[data-role]').forEach(el=>el.onclick=()=>{$$('[data-role]').forEach(e=>e.classList.remove('selected'));el.classList.add('selected');$('#login-email').value=el.dataset.role==='founder'?'founder@demo.settle':'finance@demo.settle';$('#login-password').value='demo-settle';});$('#login-form').onsubmit=async e=>{e.preventDefault();const btn=$('.login-submit');btn.disabled=true;btn.textContent='Opening your workspace…';try{await request('login',{email:$('#login-email').value,password:$('#login-password').value});await load();}catch(error){$('#login-error').innerHTML=`<p class="login-error">${esc(error.message)}</p>`;btn.disabled=false;btn.innerHTML='Sign in to workspace '+I('arrow-right');hydrate();}};}
-load().catch(e=>{if(e.status===401)login();else{$('#app').innerHTML=empty('The workspace could not load',esc(e.message),'<button class="btn primary" id="retry">Try again</button>');$('#retry').onclick=()=>location.reload();}});
+function hydrate() {
+  createIcons({ icons, attrs: { "stroke-width": 1.65 } });
+  $$(".table-scroll").forEach((el) => {
+    el.tabIndex = 0;
+    el.setAttribute("role", "region");
+    el.setAttribute(
+      "aria-label",
+      "Report table. Scroll to see additional columns.",
+    );
+  });
+  $$(".data-table th").forEach((el) => el.setAttribute("scope", "col"));
+}
+async function request(path, body) {
+  const res = await fetch("/api/" + path, {
+    ...(body === undefined
+      ? {}
+      : {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        }),
+  });
+  const result = await res.json();
+  if (!res.ok) {
+    const error = new Error(result.error);
+    error.details = result.errors;
+    error.status = res.status;
+    throw error;
+  }
+  return result;
+}
+async function load() {
+  data = await request("state");
+  render();
+}
+function button(text, action, kind = "secondary", icon = "") {
+  return `<button class="btn ${kind}" data-action="${action}">${icon ? I(icon) : ""}${text}</button>`;
+}
+function pill(status) {
+  const cls =
+    status === "Settled" || status === "Recovered"
+      ? "green"
+      : status === "Short-paid" || status === "Return not received"
+        ? "red"
+        : status === "Freight overcharged"
+          ? "purple"
+          : status === "Unpaid past due"
+            ? "amber"
+            : "neutral";
+  return `<span class="pill ${cls}"><span class="dot"></span>${esc(status)}</span>`;
+}
+function label(text) {
+  return `<div class="eyebrow">${text}</div>`;
+}
+function empty(title, sub, action = "") {
+  return `<div class="empty">${I("check-check")}<h3>${title}</h3><p>${sub}</p>${action}</div>`;
+}
+function currentOrders() {
+  return data.orders.filter(
+    (o) =>
+      (period === "All dates" ||
+        o.date.startsWith(period === "October 2026" ? "2026-10" : "2026-11")) &&
+      (!q ||
+        [o.id, o.channel, o.partner].some((v) =>
+          v.toLowerCase().includes(q.toLowerCase()),
+        )) &&
+      (partner === "All partners" || o.partner === partner) &&
+      (filter === "All statuses" || o.status === filter),
+  );
+}
+function shell() {
+  return `<aside class="sidebar"><a href="#" class="brand" data-nav="Overview"><span class="brand-mark">s<span>•</span></span>settle<span class="brand-period">.</span></a><button class="workspace" data-action="workspace"><span class="workspace-icon">A</span><span><strong>Company A</strong><small>Finance workspace</small></span>${I("chevron-down")}</button><div class="nav-label">WORKSPACE</div><nav>${[
+    ["Overview", "layout-dashboard"],
+    ["Reconciliation", "arrow-left-right"],
+    ["Imports", "upload"],
+    ["Claims", "file-check-2"],
+    ["Returns", "rotate-ccw"],
+  ]
+    .map(
+      ([name, icon]) =>
+        `<button class="nav-item ${view === name ? "active" : ""}" data-nav="${name}">${I(icon)}<span>${name}</span>${name === "Claims" ? `<span class="nav-count">${data.orders.filter((o) => o.risk > 0 && o.claim === "Open").length}</span>` : ""}</button>`,
+    )
+    .join(
+      "",
+    )}</nav><div class="nav-label configuration">CONFIGURATION</div><nav>${[
+    ["Rate cards", "sliders-horizontal"],
+    ["Mapping history", "layers"],
+  ]
+    .map(
+      ([name, icon]) =>
+        `<button class="nav-item ${view === name ? "active" : ""}" data-nav="${name}">${I(icon)}<span>${name}</span></button>`,
+    )
+    .join(
+      "",
+    )}</nav><div class="sidebar-bottom"><div class="close-card"><span class="live-dot"></span> Your numbers, in order.<p>A clearer close starts here.</p></div><button class="nav-item" data-action="help">${I("help-circle")}<span>Help & getting started</span>${I("arrow-up-right")}</button><button class="profile" data-action="account"><span class="avatar">${data.user.role === "co-founder" ? "AR" : "VB"}</span><span><strong>${esc(data.user.name)}</strong><small>${esc(data.user.role)}</small></span>${I("chevrons-up-down")}</button></div></aside><div class="scrim" data-action="mobile-menu"></div><div class="main"><header class="topbar"><div class="breadcrumb"><button class="icon-btn mobile-menu" aria-label="Open navigation" data-action="mobile-menu">${I("menu")}</button><span>Workspace</span>${I("chevron-right")}<strong>${view}</strong></div><div class="top-right"><span class="demo-label"><span class="live-dot"></span>Demo workspace</span><button class="icon-btn" aria-label="Workspace help" data-action="help">${I("help-circle")}</button><span class="avatar small">${data.user.role === "co-founder" ? "AR" : "VB"}</span></div></header><main id="main-content"></main><footer><span>${I("shield-check")} Personal data stays out of your workspace.</span><span>Company A · Bengaluru <span class="footer-dot">•</span> INR ₹</span></footer></div>`;
+}
+function render() {
+  const scroll = window.scrollY;
+  $("#app").innerHTML = shell();
+  const content = {
+    Overview: overview,
+    Reconciliation: reconciliation,
+    Imports: imports,
+    Claims: claims,
+    Returns: returns,
+    "Rate cards": rateCards,
+    "Mapping history": mappingHistory,
+  }[view];
+  $("#main-content").innerHTML = content();
+  hydrate();
+  bind();
+  window.scrollTo(0, scroll);
+}
+function heading(title, subtitle, actions = "") {
+  return `<div class="page-heading"><div><div class="page-kicker">YOUR FINANCE, RECONCILED</div><h1>${title}</h1><p>${subtitle}</p></div><div class="heading-actions">${actions}</div></div>`;
+}
+function periodSelect() {
+  return `<label class="select-wrap">${I("calendar-days")}<select id="period" aria-label="Date range">${["All dates", "October 2026", "November 2026"].map((x) => `<option ${period === x ? "selected" : ""}>${x}</option>`).join("")}</select>${I("chevron-down")}</label>`;
+}
+function overview() {
+  const orders = currentOrders(),
+    s = deriveSummary(orders),
+    exception = orders
+      .filter((o) => o.risk > 0)
+      .sort((a, b) => b.risk - a.risk),
+    open = orders.filter(
+      (o) => o.risk > 0 && o.claim !== "Recovered" && o.claim !== "Rejected",
+    ),
+    recovered = orders
+      .filter((o) => o.claim === "Recovered")
+      .reduce((s, o) => s + o.risk, 0);
+  const match = s.total ? Math.round((s.matched / s.total) * 1000) / 10 : 0;
+  const top = s.partners
+    .filter((p) => p.risk)
+    .sort((a, b) => b.risk - a.risk)
+    .slice(0, 5);
+  return (
+    heading(
+      "Every rupee. Accounted for.",
+      "A clear view of your settlements, exceptions, and what comes next.",
+      periodSelect() + button("Upload reports", "upload", "primary", "plus"),
+    ) +
+    `<div class="demo-strip"><span>${I("sparkles")}<strong>Your workspace is ready to explore.</strong> Sample data · As of 02 Nov 2026</span><button data-action="demo-info">About this data ${I("arrow-up-right")}</button></div><section class="stats-grid"><article class="stat-card risk-stat"><div class="stat-label">Money at risk ${I("arrow-up-right")}</div><div class="stat-value">${money(open.reduce((s, o) => s + o.risk, 0))}<span class="stat-unit">INR</span></div><div class="stat-foot"><span class="mini-pill amber">${num(open.length)} exceptions</span><span>Need your attention</span></div></article><article class="stat-card"><div class="stat-label">Settlements received ${I("wallet")}</div><div class="stat-value">${money(s.received, true)}</div><div class="stat-foot"><span class="green-text">${I("arrow-down-left")} ${num(s.total)} orders</span><span>Across 6 channels</span></div></article><article class="stat-card"><div class="stat-label">Fully reconciled ${I("check-check")}</div><div class="stat-value">${match}<span class="percent">%</span></div><div class="progress-track"><span style="width:${match}%"></span></div><div class="stat-foot"><span>${num(s.matched)} of ${num(s.total)} orders</span><span class="muted">Target 98%</span></div></article><article class="stat-card"><div class="stat-label">Recovered through claims ${I("file-check-2")}</div><div class="stat-value">${money(recovered)}</div><div class="stat-foot"><span class="green-text">${orders.filter((o) => o.claim === "Recovered").length} claims recovered</span><span>Year one target ₹30L</span></div><div class="recovery-note">Every resolved gap adds up.</div></article></section><section class="overview-middle"><article class="panel risk-panel"><div class="panel-heading"><div><h2>Where your money is at risk</h2><p>Outstanding exceptions, grouped by partner</p></div><button class="text-btn" data-nav="Claims">View claims ${I("arrow-up-right")}</button></div><div class="risk-chart"><div class="risk-chart-label">PARTNER <span>AMOUNT AT RISK</span></div>${top.map((p, i) => `<button class="bar-row" data-partner="${esc(p.partner)}"><span class="partner-label"><span class="partner-avatar color-${i}">${p.partner === "Courier Alpha" ? "α" : p.partner === "Courier Beta" ? "β" : p.partner.startsWith("Quick") ? "Q" : p.partner.slice(-1)}</span>${esc(p.partner)}</span><span class="bar-track"><span style="width:${Math.max(4, (p.risk / (top[0]?.risk || 1)) * 100)}%;opacity:${1 - i * 0.13}"></span></span><strong>${money(p.risk)}</strong></button>`).join("") || empty("No money at risk", "All orders in this period are reconciled.")}<div class="chart-scale"><span>₹0</span><span>${money((top[0]?.risk || 0) / 2, true)}</span><span>${money(top[0]?.risk || 0, true)}</span></div></div><div class="panel-note"><span class="square-key"></span> Unpaid, short-paid, freight & missing returns <span>${I("shield-check")} TCS / TDS excluded</span></div></article><article class="panel action-panel"><div class="panel-heading"><div><h2>Let’s close the gaps</h2><p>Your next best actions</p></div><span class="count-circle">3</span></div>${[
+      [
+        "Unpaid past due",
+        "Follow up on overdue payments",
+        "Remittances that have crossed the due date.",
+        "clock",
+        "amber",
+      ],
+      [
+        "Return not received",
+        "Locate missing returns",
+        "No warehouse receipt after the return window.",
+        "rotate-ccw",
+        "purple",
+      ],
+      [
+        "Short-paid",
+        "Review settlement gaps",
+        "Check deductions against agreed rates.",
+        "file-check-2",
+        "green",
+      ],
+    ]
+      .map(([status, title, sub, icon, color]) => {
+        const a = orders.filter(
+          (o) => o.issues.includes(status) && o.claim !== "Recovered",
+        );
+        return `<button class="action-row" data-status="${status}"><span class="action-icon ${color}">${I(icon)}</span><span><strong>${title}</strong><small>${sub}</small><span class="action-meta">${a.length} orders <span>·</span> ${money(a.reduce((s, o) => s + o.risk, 0))} at risk</span></span>${I("chevron-right")}</button>`;
+      })
+      .join(
+        "",
+      )}<div class="action-bottom">${I("check-circle-2")} Small follow-ups. A healthier bottom line.</div></article></section><section class="panel exceptions-panel"><div class="panel-heading"><div><h2>Exceptions worth a closer look <span class="heading-count">${exception.length}</span></h2><p>The highest-value gaps, ready for your review</p></div><button class="text-btn" data-action="exceptions">View all exceptions ${I("arrow-right")}</button></div>${orderTable(exception.slice(0, 5), false, true)}<div class="table-caption">${I("layers")} Every difference traces back to an order and its source report.<span>Gaps over ₹10 are flagged</span></div></section><section class="tax-note">${I("shield-check")}<div><strong>Deductions aren’t leakage.</strong> GST TCS and income tax TDS are shown separately in your partner summary.</div><button class="text-btn" data-action="tax">View tax summary ${I("arrow-up-right")}</button></section>`
+  );
+}
+function deriveSummary(orders) {
+  const s = {
+    total: orders.length,
+    received: orders.reduce((s, o) => s + o.received, 0),
+    matched: orders.filter((o) => o.status === "Settled").length,
+    partners: [],
+  };
+  for (const p of partners) {
+    const a = orders.filter((o) => o.partner === p);
+    s.partners.push({
+      partner: p,
+      risk: a
+        .filter((o) => o.claim !== "Recovered" && o.claim !== "Rejected")
+        .reduce((s, o) => s + o.risk, 0),
+    });
+  }
+  return s;
+}
+function orderTable(orders, checks = false, short = false) {
+  return `<div class="table-scroll"><table class="data-table"><thead><tr>${checks ? '<th class="check-cell"><input type="checkbox" id="check-all" aria-label="Select all visible orders"></th>' : ""}<th>Order / channel</th><th>Partner</th><th class="numeric">Expected</th><th class="numeric">Received</th><th class="numeric">${short ? "At risk" : "Difference"}</th><th>Status</th><th>${short ? "Age" : ""}</th></tr></thead><tbody>${orders.map((o) => `<tr>${checks ? `<td class="check-cell"><input type="checkbox" data-select="${esc(o.id)}" ${selected.has(o.id) ? "checked" : ""} aria-label="Select ${esc(o.id)}"></td>` : ""}<td><button class="order-link" data-order="${esc(o.id)}">${esc(o.id)}</button><small>${esc(o.channel)} <span class="td-dot">·</span> ${esc(o.payment)}</small></td><td><span class="partner-cell">${esc(o.partner)}</span></td><td class="numeric">${money(o.expected)}</td><td class="numeric">${money(o.received)}</td><td class="numeric ${o.risk ? "risk-number" : ""}">${short ? money(o.risk) : `${o.difference < 0 ? "−" : o.difference > 0 ? "+" : ""}${money(Math.abs(o.difference))}`}</td><td>${pill(o.status)}${o.issues.length > 1 ? `<span class="extra-issues" title="${esc(o.issues.join(", "))}">+${o.issues.length - 1}</span>` : ""}</td><td>${short ? `<span class="age ${o.age > 14 ? "old" : ""}">${o.age}d</span>` : `<button class="icon-btn" data-order="${esc(o.id)}" aria-label="View ${esc(o.id)}">${I("arrow-up-right")}</button>`}</td></tr>`).join("")}</tbody></table></div>${!orders.length ? empty("No orders found", "Try another search, or clear your filters.", button("Clear filters", "clear")) : ""}`;
+}
+function filters() {
+  return `<div class="table-toolbar"><label class="search-input">${I("search")}<input id="search" placeholder="Search order ID or partner…" value="${esc(q)}" aria-label="Search orders"><span>⌕</span></label><div class="filter-group"><label class="select-wrap">${I("filter")}<select id="status-filter" aria-label="Filter by status">${["All statuses", "Settled", "Short-paid", "Unpaid past due", "Freight overcharged", "Return not received", "Awaiting settlement"].map((x) => `<option ${filter === x ? "selected" : ""}>${x}</option>`).join("")}</select></label><label class="select-wrap"><select id="partner-filter" aria-label="Filter by partner">${["All partners", ...partners].map((x) => `<option ${partner === x ? "selected" : ""}>${x}</option>`).join("")}</select></label>${q || filter !== "All statuses" || partner !== "All partners" ? '<button class="text-btn" data-action="clear">Clear</button>' : ""}</div></div>`;
+}
+function pagination(total) {
+  const pages = Math.max(1, Math.ceil(total / 12));
+  page = Math.min(page, pages);
+  return `<div class="pagination"><span>${total ? `${(page - 1) * 12 + 1}–${Math.min(page * 12, total)}` : "0"} of ${num(total)} orders</span><span><button class="icon-btn" aria-label="Previous page" data-action="previous" ${page === 1 ? "disabled" : ""}>${I("chevron-left")}</button><span>Page ${page} of ${pages}</span><button class="icon-btn" aria-label="Next page" data-action="next" ${page === pages ? "disabled" : ""}>${I("chevron-right")}</button></span></div>`;
+}
+function reconciliation() {
+  let a = currentOrders();
+  if (activeTab === "Exceptions") a = a.filter((o) => o.issues.length);
+  if (activeTab === "Settled") a = a.filter((o) => o.status === "Settled");
+  const pages = Math.max(1, Math.ceil(a.length / 12));
+  page = Math.min(page, pages);
+  return (
+    heading(
+      "One order. The whole picture.",
+      "Match what you sold with what you actually received.",
+      button("Export results", "export-orders", "secondary", "download") +
+        button("Upload reports", "upload", "primary", "plus"),
+    ) +
+    `<div class="summary-strip"><span><strong>${num(data.orders.length)}</strong> total orders</span><span><b class="green-text">${num(data.orders.filter((o) => o.status === "Settled").length)}</b> fully settled</span><span><b class="risk-number">${num(data.orders.filter((o) => o.issues.length).length)}</b> exceptions</span><span>${I("shield-check")} ₹10 matching tolerance</span></div><section class="panel"><div class="tabs">${["All orders", "Exceptions", "Settled"].map((t) => `<button data-tab="${t}" class="${t === activeTab ? "active" : ""}">${t}</button>`).join("")}<span class="tabs-end">${I("check-check")} Rule-based matching</span></div>${filters()}${orderTable(a.slice((page - 1) * 12, page * 12))}${pagination(a.length)}</section><div class="quiet-note">${I("alert-circle")} Expected amount = order value − channel fee − commission − TCS − TDS. Returned orders use the return fee.</div>`
+  );
+}
+function claims() {
+  const a = currentOrders().filter((o) => o.risk > 0),
+    open = a.filter((o) => o.claim === "Open"),
+    inProgress = a.filter((o) => o.claim === "In progress"),
+    recovered = a.filter((o) => o.claim === "Recovered");
+  const pages = Math.max(1, Math.ceil(a.length / 12));
+  page = Math.min(page, pages);
+  return (
+    heading(
+      "Turn exceptions into recoveries.",
+      "A partner-ready claims list. Every gap backed by evidence.",
+      button("Export evidence", "export-claims", "primary", "download"),
+    ) +
+    `<div class="claim-stats"><div><span>Open claims</span><strong>${money(open.reduce((s, o) => s + o.risk, 0))}</strong><small>${open.length} orders to follow up</small></div><div><span>In progress</span><strong>${money(inProgress.reduce((s, o) => s + o.risk, 0))}</strong><small>${inProgress.length} orders being reviewed</small></div><div><span>Recovered</span><strong class="green-text">${money(recovered.reduce((s, o) => s + o.risk, 0))}</strong><small>${recovered.length} resolved claims</small></div><div class="claim-explain">${I("file-check-2")}<strong>Ready for your partner.</strong><p>Export order details, expected calculations, source rows and deductions in one file.</p></div></div><section class="panel"><div class="panel-heading"><div><h2>Claims workspace <span class="heading-count">${a.length}</span></h2><p>Track follow-ups here. Claim filing stays with your team.</p></div></div>${filters()}<div class="bulk-bar"><span>${selected.size} selected</span><label>Update status <select id="claim-status" aria-label="Claim status"><option>In progress</option><option>Recovered</option><option>Rejected</option><option>Open</option></select></label>${button("Apply to selected", "update-claims", "secondary", "check")}</div><div class="table-scroll"><table class="data-table"><thead><tr><th class="check-cell"><input id="check-all" type="checkbox" aria-label="Select all visible claims"></th><th>Order / partner</th><th>Reason</th><th class="numeric">At risk</th><th>Claim status</th><th>Age</th><th></th></tr></thead><tbody>${a
+      .slice((page - 1) * 12, page * 12)
+      .map(
+        (o) =>
+          `<tr><td class="check-cell"><input type="checkbox" data-select="${esc(o.id)}" ${selected.has(o.id) ? "checked" : ""} aria-label="Select ${esc(o.id)}"></td><td><button class="order-link" data-order="${esc(o.id)}">${esc(o.id)}</button><small>${esc(o.partner)}</small></td><td>${pill(o.status)}</td><td class="numeric risk-number">${money(o.risk)}</td><td>${pill(o.claim)}</td><td><span class="age ${o.age > 14 ? "old" : ""}">${o.age}d</span></td><td><button class="icon-btn" aria-label="View evidence for ${esc(o.id)}" data-order="${esc(o.id)}">${I("arrow-up-right")}</button></td></tr>`,
+      )
+      .join(
+        "",
+      )}</tbody></table></div>${!a.length ? empty("Nothing to claim", "No exceptions match your filters.") : ""}${pagination(a.length)}</section><section class="panel aging-panel"><div class="panel-heading"><div><h2>Money at risk, by age</h2><p>Prioritise the oldest outstanding gaps</p></div></div><div class="aging-grid">${[
+      "0–7 days",
+      "8–14 days",
+      "15–30 days",
+      "31+ days",
+    ]
+      .map((label, i) => {
+        const subset = a.filter(
+          (o) =>
+            o.claim !== "Recovered" &&
+            o.claim !== "Rejected" &&
+            (i === 0
+              ? o.age <= 7
+              : i === 1
+                ? o.age > 7 && o.age <= 14
+                : i === 2
+                  ? o.age > 14 && o.age <= 30
+                  : o.age > 30),
+        );
+        return `<div><span>${label}</span><strong>${money(subset.reduce((s, o) => s + o.risk, 0))}</strong><small>${subset.length} exceptions</small></div>`;
+      })
+      .join("")}</div></section>`
+  );
+}
+function imports() {
+  return (
+    heading(
+      "Bring your reports together.",
+      "Upload, map, and reconcile. Less spreadsheet work. More clarity.",
+      button("Mapping history", "mapping-history", "secondary", "history"),
+    ) +
+    `<section class="import-layout"><article class="panel upload-panel"><div class="panel-heading"><div><h2>Upload a partner report</h2><p>Your original file stays on this device. Only mapped fields are imported.</p></div><span class="step-tag">STEP 01 / 03</span></div><div class="upload-settings"><label>Report type<select id="upload-type">${Object.keys(
+      fields,
+    )
+      .map((x) => `<option>${x}</option>`)
+      .join(
+        "",
+      )}</select></label><label>Partner / source<select id="upload-source">${["Website", ...partners].map((x) => `<option>${x}</option>`).join("")}</select></label></div><label class="dropzone" id="dropzone"><input id="file-input" type="file" accept=".csv,.xlsx,.xls" aria-label="Choose CSV or Excel report"><span class="upload-illustration">${I("file-spreadsheet")}${I("plus")}</span><h3>Drop your report here</h3><p>or <span>browse files</span> from your computer</p><div class="file-types"><span>CSV</span><span>XLSX</span><span>XLS</span><small>Up to 25 MB · 1,00,000 rows</small></div></label><div class="upload-foot">${I("shield-check")} No customer names, phone numbers, or addresses are saved.<a href="/sample-orders.csv" download>Download sample ${I("download")}</a></div></article><aside class="panel import-guide"><span class="guide-icon">${I("layers")}</span><h2>A little structure.<br>A much faster close.</h2><div class="guide-step"><span>1</span><div><strong>Choose a report</strong><p>Orders, settlements, COD, freight or warehouse receipts.</p></div></div><div class="guide-step"><span>2</span><div><strong>Review your column mapping</strong><p>Get suggestions, check 20 rows, then approve. You’re always in control.</p></div></div><div class="guide-step"><span>3</span><div><strong>Let the rules do the matching</strong><p>Expected amounts and exceptions update automatically.</p></div></div><div class="guide-note">${I("rotate-ccw")} Saved mappings are versioned, so changed formats don’t slow you down.</div></aside></section><section class="panel"><div class="panel-heading"><div><h2>Import history <span class="heading-count">${data.uploads.length}</span></h2><p>Every report, with a clear audit trail</p></div></div><div class="table-scroll"><table class="data-table"><thead><tr><th>Report</th><th>Source</th><th>Type</th><th class="numeric">Rows</th><th>Imported</th><th>Status</th></tr></thead><tbody>${data.uploads.map((u) => `<tr><td><span class="file-name">${I("file-spreadsheet")}${esc(u.name)}</span></td><td>${esc(u.source)}</td><td>${esc(u.type)}</td><td class="numeric">${num(u.rows)}</td><td>${date(u.date)}</td><td>${pill("Settled").replace("Settled", "Completed")}</td></tr>`).join("")}</tbody></table></div></section>`
+  );
+}
+function returns() {
+  const a = currentOrders().filter((o) => /return/i.test(o.delivery)),
+    missing = a.filter((o) => !o.receipt);
+  return (
+    heading(
+      "Bring every return home.",
+      "Match returns against warehouse scans. Catch missing parcels early.",
+      button("Upload receipt scans", "upload-returns", "primary", "plus"),
+    ) +
+    `<div class="summary-strip"><span><strong>${a.length}</strong> returns tracked</span><span><b class="green-text">${a.filter((o) => o.receipt).length}</b> received at warehouse</span><span><b class="risk-number">${missing.filter((o) => o.status === "Return not received").length}</b> past the return window</span><span>${I("clock")} 7-day receipt window by default</span></div><section class="panel">${filters()}<div class="table-scroll"><table class="data-table"><thead><tr><th>Order / channel</th><th>Partner</th><th class="numeric">Order value</th><th>Warehouse scan</th><th>Return age</th><th>Action</th></tr></thead><tbody>${a.map((o) => `<tr><td><button class="order-link" data-order="${esc(o.id)}">${esc(o.id)}</button><small>${esc(o.channel)}</small></td><td>${esc(o.partner)}</td><td class="numeric">${money(o.value)}</td><td>${o.receipt ? `<span class="green-text">${I("package-check")} ${esc(o.receipt)}</span>` : pill(o.issues.includes("Return not received") ? "Return not received" : "In transit")}</td><td>${o.age} days</td><td>${!o.receipt ? `<button class="text-btn" data-receipt="${esc(o.id)}">Record receipt ${I("plus")}</button>` : '<span class="muted">Received</span>'}</td></tr>`).join("")}</tbody></table></div>${!a.length ? empty("No returns here", "No returns match your current filters.") : ""}</section>`
+  );
+}
+function rateCards() {
+  const founder = data.user.role === "co-founder";
+  return (
+    heading(
+      "The right amount starts here.",
+      "Agreed channel rates power every expected settlement.",
+      founder
+        ? button("Save rate cards", "save-rates", "primary", "check")
+        : pill("Co-founder access to edit"),
+    ) +
+    `<div class="info-banner">${I("alert-circle")}<div><strong>Illustrative rates, ready for your agreements.</strong> These are sample commercial terms, not statutory tax advice. The Marketplace 1 fixed fee reproduces the brief’s ₹899 expected amount. Changes recalculate all orders.</div></div><section class="rate-grid">${data.rates
+      .map(
+        (r, i) =>
+          `<article class="panel rate-card" data-rate="${i}"><div class="rate-heading"><span class="partner-avatar color-${i % 5}">${i === 0 ? "W" : i < 4 ? "M" + i : "Q" + (i - 3)}</span><h2>${esc(r.channel)}</h2><span class="mini-pill green">Active</span></div><div class="rate-fields">${[
+            ["commission", "Commission", "%"],
+            ["fee", "Fixed fee", "₹"],
+            ["freight", "Courier freight allowance", "₹"],
+            ["returnFee", "Return fee", "₹"],
+            ["tcs", "GST TCS", "%"],
+            ["tds", "Income tax TDS", "%"],
+            ["dueDays", "Settlement due", "days"],
+            ["returnDays", "Return receipt window", "days"],
+          ]
+            .map(
+              ([key, title, unit]) =>
+                `<label>${title}<div class="rate-input"><input type="number" min="0" step="0.01" data-key="${key}" aria-label="${r.channel} ${title}" value="${r[key]}" ${founder ? "" : "disabled"}><span>${unit}</span></div></label>`,
+            )
+            .join(
+              "",
+            )}</div><div class="rate-formula">Expected = value − fees − commission − TCS − TDS</div></article>`,
+      )
+      .join(
+        "",
+      )}</section><div class="quiet-note">${I("shield-check")} Financial matching uses rules. No AI model calculates your expected amounts.</div>`
+  );
+}
+function mappingHistory() {
+  return (
+    heading(
+      "Formats change. Your work stays.",
+      "Approved column mappings, versioned by partner and report type.",
+    ) +
+    `<section class="panel"><div class="panel-heading"><div><h2>Saved mapping versions</h2><p>The most recent approved version is used for each source.</p></div></div>${
+      data.mappings.length
+        ? `<div class="table-scroll"><table class="data-table"><thead><tr><th>Source / report</th><th>Version</th><th>Mapped fields</th><th>Approved by</th><th>Date</th><th></th></tr></thead><tbody>${[
+            ...data.mappings,
+          ]
+            .reverse()
+            .map(
+              (m) =>
+                `<tr><td><strong>${esc(m.source)}</strong><small>${esc(m.type)}</small></td><td><span class="version">v${m.version}</span></td><td>${Object.keys(m.mapping).length} fields</td><td>${esc(m.approvedBy)}</td><td>${date(m.date)}</td><td><button class="text-btn" data-mapping="${m.id}">View mapping ${I("arrow-up-right")}</button></td></tr>`,
+            )
+            .join("")}</tbody></table></div>`
+        : empty(
+            "Your first mapping starts with an upload",
+            "Approve your column mapping once. Reuse it on the next partner report.",
+            button("Upload a report", "upload", "primary", "plus"),
+          )
+    }</section><section class="panel audit-panel"><div class="panel-heading"><div><h2>Workspace activity</h2><p>A simple record of who changed what</p></div></div>${
+      data.audit.length
+        ? data.audit
+            .slice(0, 15)
+            .map(
+              (a) =>
+                `<div class="audit-row">${I("history")}<span><strong>${esc(a.action)}</strong><small>${esc(a.by)} · ${date(a.date)}</small></span>${I("check")}</div>`,
+            )
+            .join("")
+        : empty(
+            "A fresh start",
+            "Imports, rate changes and claim updates will appear here.",
+          )
+    }</section>`
+  );
+}
+function navigate(next) {
+  view = next;
+  q = "";
+  filter = "All statuses";
+  partner = "All partners";
+  period = "All dates";
+  page = 1;
+  activeTab = "All orders";
+  selected.clear();
+  document.body.classList.remove("menu-open");
+  window.scrollTo(0, 0);
+  render();
+}
+function bind() {
+  $$("[data-nav]").forEach(
+    (el) =>
+      (el.onclick = (e) => {
+        e.preventDefault();
+        navigate(el.dataset.nav);
+      }),
+  );
+  $$("[data-action]").forEach(
+    (el) => (el.onclick = () => action(el.dataset.action)),
+  );
+  $$("[data-order]").forEach(
+    (el) => (el.onclick = () => orderDetail(el.dataset.order)),
+  );
+  $$("[data-status]").forEach(
+    (el) =>
+      (el.onclick = () => {
+        navigate("Reconciliation");
+        filter = el.dataset.status;
+        render();
+      }),
+  );
+  $$("[data-partner]").forEach(
+    (el) =>
+      (el.onclick = () => {
+        navigate("Claims");
+        partner = el.dataset.partner;
+        render();
+      }),
+  );
+  $$("[data-receipt]").forEach(
+    (el) => (el.onclick = () => receiptDialog(el.dataset.receipt)),
+  );
+  $$("[data-mapping]").forEach(
+    (el) => (el.onclick = () => mappingDialog(el.dataset.mapping)),
+  );
+  $$("[data-tab]").forEach(
+    (el) =>
+      (el.onclick = () => {
+        activeTab = el.dataset.tab;
+        page = 1;
+        render();
+      }),
+  );
+  if ($("#period"))
+    $("#period").onchange = (e) => {
+      period = e.target.value;
+      render();
+    };
+  if ($("#status-filter"))
+    $("#status-filter").onchange = (e) => {
+      filter = e.target.value;
+      selected.clear();
+      page = 1;
+      render();
+    };
+  if ($("#partner-filter"))
+    $("#partner-filter").onchange = (e) => {
+      partner = e.target.value;
+      selected.clear();
+      page = 1;
+      render();
+    };
+  if ($("#search"))
+    $("#search").oninput = (e) => {
+      q = e.target.value;
+      selected.clear();
+      page = 1;
+      const pos = e.target.selectionStart;
+      render();
+      $("#search").focus();
+      $("#search").setSelectionRange(pos, pos);
+    };
+  $$("[data-select]").forEach(
+    (el) =>
+      (el.onchange = () => {
+        el.checked
+          ? selected.add(el.dataset.select)
+          : selected.delete(el.dataset.select);
+        updateSelection();
+      }),
+  );
+  if ($("#check-all"))
+    $("#check-all").onchange = (e) => {
+      $$("[data-select]").forEach((el) => {
+        el.checked = e.target.checked;
+        el.checked
+          ? selected.add(el.dataset.select)
+          : selected.delete(el.dataset.select);
+      });
+      updateSelection();
+    };
+  updateSelection();
+  const saveRates = $('[data-action="save-rates"]');
+  if (saveRates) {
+    saveRates.disabled = true;
+    $$("[data-rate] input").forEach(
+      (input) =>
+        (input.oninput = () => {
+          saveRates.disabled = false;
+          input.closest(".rate-card").querySelector(".mini-pill").textContent =
+            "Unsaved";
+        }),
+    );
+  }
+  if ($("#file-input"))
+    $("#file-input").onchange = (e) => readUpload(e.target.files[0]);
+  if ($("#dropzone")) {
+    const zone = $("#dropzone");
+    zone.ondragover = (e) => {
+      e.preventDefault();
+      zone.classList.add("dragover");
+    };
+    zone.ondragleave = () => zone.classList.remove("dragover");
+    zone.ondrop = (e) => {
+      e.preventDefault();
+      zone.classList.remove("dragover");
+      readUpload(e.dataTransfer.files[0]);
+    };
+  }
+}
+function updateSelection() {
+  const bar = $(".bulk-bar>span");
+  if (bar) bar.textContent = selected.size + " selected";
+  const apply = $('[data-action="update-claims"]');
+  if (apply) apply.disabled = selected.size === 0;
+  const all = $("#check-all"),
+    boxes = $$("[data-select]");
+  if (all) {
+    const checked = boxes.filter((el) => el.checked).length;
+    all.checked = boxes.length > 0 && checked === boxes.length;
+    all.indeterminate = checked > 0 && checked < boxes.length;
+  }
+}
+async function action(name) {
+  try {
+    if (name === "upload") return navigate("Imports");
+    if (name === "mapping-history") return navigate("Mapping history");
+    if (name === "upload-returns") {
+      navigate("Imports");
+      $("#upload-type").value = "Returns";
+      return;
+    }
+    if (name === "mobile-menu")
+      return document.body.classList.toggle("menu-open");
+    if (name === "exceptions") {
+      navigate("Reconciliation");
+      activeTab = "Exceptions";
+      render();
+      return;
+    }
+    if (name === "clear") {
+      q = "";
+      filter = "All statuses";
+      partner = "All partners";
+      page = 1;
+      return render();
+    }
+    if (name === "next") {
+      page++;
+      selected.clear();
+      return render();
+    }
+    if (name === "previous") {
+      page = Math.max(1, page - 1);
+      selected.clear();
+      return render();
+    }
+    if (name === "export-orders")
+      return exportEvidence(
+        currentOrders().filter((o) =>
+          activeTab === "Exceptions"
+            ? o.issues.length
+            : activeTab === "Settled"
+              ? o.status === "Settled"
+              : true,
+        ),
+        "reconciliation",
+      );
+    if (name === "export-claims")
+      return exportEvidence(
+        currentOrders().filter(
+          (o) => o.risk > 0 && (!selected.size || selected.has(o.id)),
+        ),
+        "claims-evidence",
+      );
+    if (name === "update-claims") {
+      if (!selected.size)
+        return toast("Select at least one claim first.", true);
+      const status = $("#claim-status").value;
+      await request("claim", { ids: [...selected], status });
+      selected.clear();
+      await load();
+      return toast("Claim statuses updated.");
+    }
+    if (name === "save-rates") {
+      const rates = data.rates.map((r, i) => ({
+        ...r,
+        ...Object.fromEntries(
+          $$(`[data-rate="${i}"] input`).map((el) => [
+            el.dataset.key,
+            Number(el.value),
+          ]),
+        ),
+      }));
+      await request("rates", { rates });
+      await load();
+      return toast("Rate cards saved. Expected amounts recalculated.");
+    }
+    if (name === "tax") return taxDialog();
+    if (name === "help") return helpDialog();
+    if (name === "demo-info") return demoDialog();
+    if (name === "workspace")
+      return modal(
+        "Company A",
+        "Finance workspace",
+        `<div class="workspace-details"><span class="workspace-icon">A</span><h3>Company A · Bengaluru</h3><p>Home textiles · 6 sales channels · 2 courier aggregators</p><div class="info-banner">This demo uses synthetic orders and illustrative commercial rates. No real customer data is included.</div></div>`,
+      );
+    if (name === "account")
+      return modal(
+        "Your workspace account",
+        data.user.role,
+        `<div class="account-details"><span class="avatar">${data.user.role === "co-founder" ? "AR" : "VB"}</span><h3>${esc(data.user.name)}</h3><p>${esc(data.user.email)}</p><p>${data.user.role === "co-founder" ? "You can manage rate cards, roll back mappings and work through claims." : "You can upload reports, approve mappings, reconcile orders and manage claims."}</p>${button("Sign out", "logout", "secondary", "log-out")}</div>`,
+      );
+    if (name === "logout") {
+      await request("logout", {});
+      closeModal();
+      data = null;
+      return login();
+    }
+  } catch (e) {
+    toast(e.message, true);
+  }
+}
+function modal(title, sub, body, kind = "") {
+  const prev = document.activeElement;
+  $("#overlay").innerHTML =
+    `<div class="modal-backdrop"><section class="modal ${kind}" role="dialog" aria-modal="true" aria-labelledby="modal-title" tabindex="-1"><header class="modal-header"><div><h2 id="modal-title">${title}</h2><p>${sub}</p></div><button class="icon-btn" id="close-modal" aria-label="Close dialog">${I("x")}</button></header><div class="modal-body">${body}</div></section></div>`;
+  hydrate();
+  $("#close-modal").onclick = closeModal;
+  $(".modal-backdrop").onclick = (e) => {
+    if (e.target === $(".modal-backdrop")) closeModal();
+  };
+  $("#overlay").previousFocus = prev;
+  $(".modal").focus();
+  document.body.classList.add("modal-open");
+  $$("#overlay [data-action]").forEach(
+    (el) => (el.onclick = () => action(el.dataset.action)),
+  );
+}
+function closeModal() {
+  $("#overlay").innerHTML = "";
+  document.body.classList.remove("modal-open");
+  $("#overlay").previousFocus?.focus();
+}
+document.addEventListener("keydown", (e) => {
+  if (!$("#overlay").innerHTML) return;
+  if (e.key === "Escape") closeModal();
+  if (e.key === "Tab") {
+    const a = $$(
+      "#overlay button:not([disabled]),#overlay input,#overlay select,#overlay a[href]",
+    );
+    if (e.shiftKey && document.activeElement === a[0]) {
+      e.preventDefault();
+      a.at(-1)?.focus();
+    } else if (!e.shiftKey && document.activeElement === a.at(-1)) {
+      e.preventDefault();
+      a[0]?.focus();
+    }
+  }
+});
+function orderDetail(id) {
+  const o = data.orders.find((o) => o.id === id),
+    r = o.rate;
+  modal(
+    esc(o.id),
+    "Order detail & reconciliation evidence",
+    `<div class="detail-status">${pill(o.status)}<span>${esc(o.channel)} · ${esc(o.payment)}</span><span>${date(o.date)} 2026</span></div><div class="detail-amounts"><div><span>Expected</span><strong>${money(o.expected)}</strong></div><div><span>Received</span><strong>${money(o.received)}</strong></div><div><span>Money at risk</span><strong class="risk-number">${money(o.risk)}</strong></div></div><h3 class="section-title">The calculation</h3><div class="calculation">${(/return/i.test(
+      o.delivery,
+    )
+      ? [["Return fee", -r.returnFee]]
+      : [
+          ["Order value", o.value],
+          [
+            "Channel commission (" + r.commission + "%)",
+            (-o.value * r.commission) / 100,
+          ],
+          ["Fixed fee", -r.fee],
+          ["GST TCS (" + r.tcs + "%)", -o.tcs],
+          ["Income tax TDS (" + r.tds + "%)", -o.tds],
+        ]
+    )
+      .map(
+        ([label, v]) =>
+          `<div><span>${label}</span><strong>${v < 0 ? "−" : ""}${money(Math.abs(v))}</strong></div>`,
+      )
+      .join(
+        "",
+      )}<div class="calculation-total"><strong>Expected settlement</strong><strong>${money(o.expected)}</strong></div></div>${o.issues.length ? `<h3 class="section-title">Why this order was flagged</h3>${o.issues.map((issue) => `<div class="issue-row">${I("alert-circle")}<span>${esc(issue)}${issue === "Freight overcharged" ? ` · billed ${money(o.freight)}, allowance ${money(r.freight)}` : issue === "Return not received" ? ` · no receipt after ${r.returnDays} days` : issue === "Unpaid past due" ? ` · ${o.age} days old, ${r.dueDays}-day settlement window` : ` · settlement difference ${money(o.difference)}`}</span></div>`).join("")}` : ""}<h3 class="section-title">Source evidence</h3><div class="evidence-box">${I("file-spreadsheet")}<span><strong>${esc(o.source)}</strong><small>Row ${o.sourceRow} · ${esc(o.partner)} · Original order ID preserved</small></span></div><div class="detail-footer"><span class="muted">Claim status: ${esc(o.claim)}</span><button class="btn primary" id="export-one">${I("download")} Export evidence</button></div>`,
+    "drawer",
+  );
+  $("#export-one").onclick = () => exportEvidence([o], "evidence-" + o.id);
+}
+function exportEvidence(orders, name) {
+  if (!orders.length) return toast("No matching orders to export.", true);
+  const header = [
+    "Order ID",
+    "Channel",
+    "Partner",
+    "Date",
+    "Payment",
+    "Delivery",
+    "Order value INR",
+    "Expected INR",
+    "Received INR",
+    "Difference INR",
+    "Freight billed INR",
+    "Freight expected INR",
+    "Freight gap INR",
+    "GST TCS INR",
+    "Income tax TDS INR",
+    "Money at risk INR",
+    "Issues",
+    "Claim status",
+    "Source file",
+    "Source row",
+    "Receipt",
+  ];
+  const rows = orders.map((o) => [
+    o.id,
+    o.channel,
+    o.partner,
+    o.date,
+    o.payment,
+    o.delivery,
+    o.value,
+    o.expected,
+    o.received,
+    o.difference,
+    o.freight,
+    o.rate.freight,
+    o.freightGap,
+    o.tcs,
+    o.tds,
+    o.risk,
+    o.issues.join("; "),
+    o.claim,
+    o.source,
+    o.sourceRow,
+    o.receipt,
+  ]);
+  downloadCsv([header, ...rows], name);
+  toast("Evidence exported for " + orders.length + " orders.");
+}
+function downloadCsv(rows, name) {
+  const csv =
+    "\uFEFF" +
+    rows
+      .map((row) =>
+        row
+          .map((v) => {
+            let s = String(v ?? "");
+            if (
+              /^[=+@\t\r]/.test(s) ||
+              (/^\-/.test(s) && !/^\-\d+(\.\d+)?$/.test(s))
+            )
+              s = "'" + s;
+            return '"' + s.replaceAll('"', '""') + '"';
+          })
+          .join(","),
+      )
+      .join("\r\n");
+  const url = URL.createObjectURL(
+    new Blob([csv], { type: "text/csv;charset=utf-8" }),
+  );
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "settle-" + name + ".csv";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+function taxDialog() {
+  const summaries = partners.map((p) => {
+    const a = data.orders.filter((o) => o.partner === p);
+    return {
+      partner: p,
+      tcs: a.reduce((s, o) => s + o.tcs, 0),
+      tds: a.reduce((s, o) => s + o.tds, 0),
+    };
+  });
+  modal(
+    "Tax deductions, kept separate.",
+    "Partner-wise GST TCS and income tax TDS",
+    `<div class="info-banner">${I("shield-check")} These deductions are already included in expected settlements. They are not counted as leakage.</div><div class="table-scroll"><table class="data-table"><thead><tr><th>Partner</th><th class="numeric">GST TCS</th><th class="numeric">Income tax TDS</th></tr></thead><tbody>${summaries.map((p) => `<tr><td>${p.partner}</td><td class="numeric">${money(p.tcs)}</td><td class="numeric">${money(p.tds)}</td></tr>`).join("")}</tbody></table></div><div class="detail-footer"><span class="muted">Illustrative rates from your rate cards</span><button class="btn primary" id="export-tax">${I("download")} Export summary</button></div>`,
+  );
+  $("#export-tax").onclick = () =>
+    downloadCsv(
+      [
+        ["Partner", "GST TCS INR", "Income tax TDS INR"],
+        ...summaries.map((p) => [p.partner, p.tcs, p.tds]),
+      ],
+      "tax-summary",
+    );
+}
+function helpDialog() {
+  modal(
+    "A clearer close starts here.",
+    "A quick guide to your reconciliation workspace",
+    `<div class="help-steps">${[
+      [
+        "01",
+        "Import your orders first",
+        "Choose a source, upload a CSV or Excel file, then review the suggested column mapping. The first 20 rows are shown before you approve.",
+      ],
+      [
+        "02",
+        "Add partner reports",
+        "Upload settlement, COD, freight and receipt reports. Order IDs link each report to the order. An import with errors saves nothing.",
+      ],
+      [
+        "03",
+        "Review your exceptions",
+        "Rules compare received amounts with expected amounts from rate cards. Gaps over ₹10, overdue payments and missing returns surface here.",
+      ],
+      [
+        "04",
+        "Export evidence and follow up",
+        "Select claims and export the calculation, source rows and deductions. Mark a claim in progress or recovered after your team confirms it.",
+      ],
+    ]
+      .map(
+        ([n, t, p]) =>
+          `<div class="help-step"><span>${n}</span><div><h3>${t}</h3><p>${p}</p></div></div>`,
+      )
+      .join(
+        "",
+      )}</div><div class="info-banner">Co-founders can edit rate cards and restore mapping versions. Finance executives can import reports, approve mappings, reconcile and manage claims.</div>`,
+  );
+}
+function demoDialog() {
+  modal(
+    "Real flows. Illustrative numbers.",
+    "What to expect in this demo",
+    `<p>This workspace starts with 480 synthetic orders across six channels, including the three orders from the brief. The reference date is <strong>2 November 2026</strong>.</p><p>Commercial fees, deductions, courier allowances and seven-day windows are assumptions you can inspect in Rate cards. Amounts come from the reconciliation rules, not from a fixed dashboard.</p><p>Uploads, mappings, claim statuses, rate cards and receipt scans are stored in the database. No payments are moved and no claims are sent to partners.</p><div class="info-banner">The mapping assistant proposes fields from header patterns. It can be uncertain: every proposal must be reviewed and approved.</div>`,
+  );
+}
+function receiptDialog(id) {
+  modal(
+    "Record a warehouse receipt",
+    esc(id),
+    `<form id="receipt-form"><label class="form-label">Receipt / scan reference<input id="receipt" required maxlength="100" placeholder="e.g. WH-SCAN-1052"></label><p class="muted">Only record a scan after the warehouse has confirmed receipt.</p><button class="btn primary" type="submit">${I("package-check")} Save receipt</button></form>`,
+  );
+  $("#receipt-form").onsubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await request("receipt", { id, receipt: $("#receipt").value });
+      closeModal();
+      await load();
+      toast("Warehouse receipt recorded.");
+    } catch (e) {
+      toast(e.message, true);
+    }
+  };
+}
+function mappingDialog(id) {
+  const m = data.mappings.find((m) => m.id === id);
+  modal(
+    esc(m.source) + " · v" + m.version,
+    esc(m.type) + " report mapping",
+    `<div class="calculation">${Object.entries(m.mapping)
+      .map(
+        ([f, c]) =>
+          `<div><span>${esc(f)}</span><strong>${esc(c)}</strong></div>`,
+      )
+      .join(
+        "",
+      )}</div><p class="muted">Approved by ${esc(m.approvedBy)} · ${date(m.date)}</p>${data.user.role === "co-founder" ? '<button class="btn primary" id="rollback">Restore as a new version</button>' : '<p class="quiet-note">Only the co-founder can restore a mapping version.</p>'}`,
+  );
+  if ($("#rollback"))
+    $("#rollback").onclick = async () => {
+      try {
+        await request("rollback", { id });
+        closeModal();
+        await load();
+        toast("Mapping restored as a new version.");
+      } catch (e) {
+        toast(e.message, true);
+      }
+    };
+}
+async function readUpload(file) {
+  if (!file) return;
+  if (file.size > 25 * 1024 * 1024)
+    return toast("Choose a file smaller than 25 MB.", true);
+  if (!/\.(csv|xlsx|xls)$/i.test(file.name))
+    return toast("Choose a CSV or Excel file.", true);
+  const type = $("#upload-type").value,
+    source = $("#upload-source").value;
+  try {
+    toast("Reading report and suggesting mappings…");
+    const workbook = XLSX.read(await file.arrayBuffer(), {
+      type: "array",
+      cellDates: false,
+    });
+    const rows = XLSX.utils.sheet_to_json(
+      workbook.Sheets[workbook.SheetNames[0]],
+      { defval: "", raw: false },
+    );
+    if (!rows.length || rows.length > 100000)
+      throw new Error("Choose a file with between 1 and 1,00,000 data rows.");
+    const headers = Object.keys(rows[0]);
+    const suggestion = await request("suggest", { headers, type });
+    const saved = [...data.mappings]
+      .reverse()
+      .find(
+        (m) =>
+          m.type === type &&
+          m.source === source &&
+          Object.values(m.mapping).every((c) => headers.includes(c)),
+      );
+    draft = {
+      file,
+      rows,
+      headers,
+      type,
+      source,
+      mapping: saved
+        ? { ...saved.mapping }
+        : Object.fromEntries(
+            suggestion.suggestions.map((s) => [s.field, s.column]),
+          ),
+      suggestions: suggestion.suggestions,
+      saved,
+    };
+    showMapping();
+  } catch (e) {
+    toast(e.message, true);
+  }
+}
+const fieldLabels = {
+  id: "Order ID",
+  channel: "Sales channel",
+  value: "Order value",
+  payment: "Payment method",
+  delivery: "Delivery status",
+  date: "Order date",
+  partner: "Partner / courier",
+  received: "Amount received",
+  freight: "Freight charged",
+  receipt: "Warehouse receipt",
+};
+function showMapping() {
+  const d = draft;
+  modal(
+    "A good match starts with good columns.",
+    `STEP 02 / 03 · ${esc(d.file.name)} · ${num(d.rows.length)} rows`,
+    `${d.saved ? `<div class="info-banner green">${I("check-circle-2")} Saved mapping v${d.saved.version} loaded for ${esc(d.source)}. Review it before continuing.</div>` : `<div class="info-banner">${I("sparkles")} <span><strong>Mapping suggestions, ready for your review.</strong> Header-based suggestions can be wrong. Check every field, then preview your data.</span></div>`}<div class="mapping-grid">${fields[
+      d.type
+    ]
+      .map((f) => {
+        const s = d.suggestions.find((x) => x.field === f);
+        return `<label>${fieldLabels[f]} <span class="required">*</span><select data-map="${f}"><option value="">Select a column</option>${d.headers.map((h) => `<option value="${esc(h)}" ${d.mapping[f] === h ? "selected" : ""}>${esc(h)}</option>`).join("")}</select><small>${d.saved ? "Saved mapping" : s?.confidence >= 0.9 ? "Suggested · high confidence" : "Review required"}</small></label>`;
+      })
+      .join(
+        "",
+      )}</div><div class="preview-heading"><h3>Preview · first ${Math.min(20, d.rows.length)} rows</h3><span>Only these mapped fields will be saved</span></div><div class="preview-table" id="preview-table"></div><div id="import-errors" role="alert"></div><div class="approve-footer"><label class="approve-check"><input type="checkbox" id="approve">I reviewed the mapping and preview rows.</label><button class="btn primary" id="approve-import" disabled>${I("check")} Approve & import</button></div>`,
+    "wide",
+  );
+  mappingPreview();
+  $$("[data-map]").forEach(
+    (el) =>
+      (el.onchange = () => {
+        d.mapping[el.dataset.map] = el.value;
+        $("#approve").checked = false;
+        $("#approve-import").disabled = true;
+        mappingPreview();
+      }),
+  );
+  $("#approve").onchange = (e) =>
+    ($("#approve-import").disabled =
+      !e.target.checked || fields[d.type].some((f) => !d.mapping[f]));
+  $("#approve-import").onclick = commitImport;
+}
+function mappingPreview() {
+  const d = draft;
+  $("#preview-table").innerHTML =
+    `<table class="data-table"><thead><tr><th>Row</th>${fields[d.type].map((f) => `<th>${fieldLabels[f]}</th>`).join("")}</tr></thead><tbody>${d.rows
+      .slice(0, 20)
+      .map(
+        (r, i) =>
+          `<tr><td>${i + 2}</td>${fields[d.type].map((f) => `<td>${esc(r[d.mapping[f]] || "—")}</td>`).join("")}</tr>`,
+      )
+      .join("")}</tbody></table>`;
+}
+async function commitImport() {
+  const d = draft,
+    b = $("#approve-import");
+  b.disabled = true;
+  b.textContent = "Importing and reconciling…";
+  try {
+    const result = await request("import", {
+      type: d.type,
+      source: d.source,
+      name: d.file.name,
+      mapping: d.mapping,
+      rows: d.rows.map((r) =>
+        Object.fromEntries(Object.values(d.mapping).map((c) => [c, r[c]])),
+      ),
+    });
+    closeModal();
+    await load();
+    toast(
+      `${num(result.imported)} rows imported. Your reconciliation is up to date.`,
+    );
+    draft = null;
+  } catch (e) {
+    $("#import-errors").innerHTML =
+      `<div class="error-box"><strong>${esc(e.message)}</strong>${
+        e.details
+          ? e.details
+              .slice(0, 8)
+              .map((x) => `<p>Row ${x.row}: ${esc(x.error)}</p>`)
+              .join("")
+          : ""
+      }</div>`;
+    b.disabled = false;
+    b.textContent = "Approve & import";
+  }
+}
+function login() {
+  const roles = [
+    ["finance", "Finance executive", "Import reports, reconcile and follow up"],
+    ["founder", "Co-founder", "Manage rates and review recoveries"],
+  ];
+  $("#app").innerHTML =
+    `<div class="login-page"><aside class="login-story"><a class="brand" href="/"><span class="brand-mark">s<span>•</span></span>settle.</a><div class="login-story-copy"><div class="eyebrow">A CLEARER CLOSE STARTS HERE</div><h1>Every order.<br>Every payment.<br><em>Everything in order.</em></h1><p>Bring your reports together.<br>Find the gaps. Get back what’s yours.</p><div class="login-visual"><span class="visual-order">${I("file-spreadsheet")} ORD-W-204118 <small>Order value</small><strong>₹1,499</strong></span><span class="visual-line"></span><span class="visual-match">${I("check-check")} Reconciled</span></div></div><div class="login-story-foot">Built for the people behind the numbers.<span>Company A · Bengaluru</span></div></aside><main class="login-form-side"><div class="login-form"><span class="mini-pill green">${I("shield-check")} Secure finance workspace</span><h2>Welcome to a<br>clearer picture.</h2><p>Sign in to your Company A workspace.</p><form id="login-form"><label class="form-label">Email address<input id="login-email" type="email" autocomplete="username" required placeholder="you@company.com" value="finance@demo.settle"></label><label class="form-label">Password<input id="login-password" type="password" autocomplete="current-password" required value="demo-settle"></label><div id="login-error" role="alert"></div><button class="btn primary login-submit" type="submit">Sign in to workspace ${I("arrow-right")}</button></form><div class="demo-login"><span>EXPLORE THE DEMO</span><p>Choose a role. Demo credentials are filled in for you.</p>${roles.map(([role, title, sub]) => `<button class="demo-role ${role === "finance" ? "selected" : ""}" data-role="${role}"><span class="role-icon">${I(role === "founder" ? "sliders-horizontal" : "file-check-2")}</span><span><strong>${title}</strong><small>${sub}</small></span>${I("arrow-up-right")}</button>`).join("")}<small class="demo-password">Demo password: <code>demo-settle</code> · Synthetic data only</small></div><div class="login-bottom">${I("shield-check")} Customer personal data is never required to reconcile.</div></div></main></div>`;
+  hydrate();
+  $$("[data-role]").forEach(
+    (el) =>
+      (el.onclick = () => {
+        $$("[data-role]").forEach((e) => e.classList.remove("selected"));
+        el.classList.add("selected");
+        $("#login-email").value =
+          el.dataset.role === "founder"
+            ? "founder@demo.settle"
+            : "finance@demo.settle";
+        $("#login-password").value = "demo-settle";
+      }),
+  );
+  $("#login-form").onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = $(".login-submit");
+    btn.disabled = true;
+    btn.textContent = "Opening your workspace…";
+    try {
+      await request("login", {
+        email: $("#login-email").value,
+        password: $("#login-password").value,
+      });
+      await load();
+    } catch (error) {
+      $("#login-error").innerHTML =
+        `<p class="login-error">${esc(error.message)}</p>`;
+      btn.disabled = false;
+      btn.innerHTML = "Sign in to workspace " + I("arrow-right");
+      hydrate();
+    }
+  };
+}
+load().catch((e) => {
+  if (e.status === 401) login();
+  else {
+    $("#app").innerHTML = empty(
+      "The workspace could not load",
+      esc(e.message),
+      '<button class="btn primary" id="retry">Try again</button>',
+    );
+    $("#retry").onclick = () => location.reload();
+  }
+});
