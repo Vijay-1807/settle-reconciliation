@@ -2,7 +2,11 @@
 
 [Public GitHub repository](https://github.com/Vijay-1807/settle-reconciliation) · Commit history is preserved for review.
 
-A working finance workspace for the D2C home-brand reconciliation brief. Built with a small browser application, a shared HTTP API, SQLite locally, and a Cloudflare Worker/D1 deployment target.
+Settle helps a finance team check whether each order was paid correctly. Upload partner reports, review the differences, and export the evidence needed to follow up.
+
+- Portfolio: [vijaybontha.vercel.app](https://vijaybontha.vercel.app/)
+- LinkedIn: [bonthavijay](https://www.linkedin.com/in/bonthavijay)
+- GitHub: [Vijay-1807](https://github.com/Vijay-1807)
 
 ## Start
 
@@ -18,18 +22,19 @@ Finance executive: `finance@demo.settle`
 Co-founder: `founder@demo.settle`  
 Demo password for both: `demo-settle`
 
-These are deliberately public demo accounts, not real credentials. Do not deploy this demo account system to a public audience with real financial data.
+These accounts use made-up data. A real customer rollout would need proper account management before accepting financial reports.
 
 ## Included
 
 - Seven workspace screens and sign-in, with responsive CSS and mobile navigation.
 - CSV/XLS/XLSX upload, source-specific mappings, 20-row preview and explicit approval.
-- Local character n-gram nearest-neighbour mapping model; approved examples improve later suggestions. Unknown or ambiguous headers need manual review.
-- Rule-based order reconciliation, strict gaps over INR 10, tax separation, due dates and return scans.
-- Claims status updates and formula-safe CSV evidence exports.
+- A small local model suggests column mappings from header names. Staff must check the preview before saving. Unclear mappings need manual input.
+- Rules calculate expected payments and flag gaps over ₹10. TCS and TDS are shown separately.
+- Claims can be tracked and exported with their source rows and calculations.
 - Channel rate cards editable by the co-founder, mapping version history and rollback.
-- Courier weight-slab cards, reported TCS/TDS inputs, missing-ID match review and an idempotent partial-payout ledger.
-- Atomic import commits with source-row evidence history and a tested rollback path.
+- Courier weight slabs, warehouse receipt checks, and a review queue for missing order IDs.
+- Partial payouts can be added without counting the same report twice.
+- Import records and mapping history are saved together. If the save fails, neither is kept.
 - SQLite persistence, HTTP-only session cookies, origin checks, role enforcement and input validation.
 - Synthetic seed orders, including the three supplied examples.
 
@@ -42,7 +47,7 @@ npm run benchmark
 npm run benchmark:import
 ```
 
-The benchmark reports its scope explicitly; it is not a hosted/browser performance guarantee. See `deployment.md` and the technical design document for assumptions and limitations.
+The recorded local check processed 100,000 CSV rows in 5.3 seconds. That includes parsing, validation, database writes, matching and totals. It does not include network transfer or browser rendering. The assumptions and remaining work are explained in the technical document.
 
 Playwright uses installed Google Chrome locally, runs desktop and iPhone-sized Chromium projects, and creates an isolated SQLite database for each test run. GitHub Actions installs Chromium and runs the same suite on Linux. `npm run build` must succeed before browser tests.
 
@@ -56,4 +61,6 @@ Design references reviewed: [21st.dev](https://21st.dev/) and [MotionSites](http
 
 ## Submission status
 
-The source is public in the GitHub repository linked above. Keep it public until the assessment review finishes. The technical document and `deployment.md` are packaged together in `settle-submission.zip` in the parent workspace. The reviewer can run the full application locally using the included demo accounts. No live deployment is claimed; hosting is optional for this submission.
+The repository is public and includes the commit history. The submission ZIP contains only the technical design PDF and `deployment.md`. The full app runs locally with the demo accounts above. There is no live hosted version; the brief makes hosting optional.
+
+See the [submission checklist and suggested note](docs/submission-checklist.md) before uploading.

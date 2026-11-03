@@ -2,16 +2,20 @@
 
 Public source repository: https://github.com/Vijay-1807/settle-reconciliation
 
+- Portfolio: https://vijaybontha.vercel.app/
+- LinkedIn: https://www.linkedin.com/in/bonthavijay
+- GitHub profile: https://github.com/Vijay-1807
+
 ## Local setup
 
 1. Install Node.js 22.13 or newer, including npm. The local server uses built-in `node:sqlite`.
 2. In the `settle` project directory, run `npm ci`.
-3. Run `npm run build` to bundle the browser app and deployment Worker. This also copies self-hosted fonts.
+3. Run `npm run build` to prepare the app files and local fonts.
 4. Run `npm run dev`.
 5. Open http://localhost:3000. Keep this terminal running while using the app.
-6. Sign in with one of the synthetic demo accounts below.
+6. Sign in with one of the demo accounts below.
 
-Data is stored in `.data/settle.sqlite`, ignored by Git. Local data and the hosted D1 database are separate. A fresh database seeds 480 synthetic orders on the first authenticated workspace read. To preserve the original demo while experimenting, use a separate checkout.
+The app saves data in `.data/settle.sqlite`. This file is excluded from Git. On the first sign-in, a new database is filled with 480 made-up orders, including the three examples from the brief. You can close and reopen the app without losing your changes.
 
 ## Demo sign-in
 
@@ -20,16 +24,16 @@ Data is stored in `.data/settle.sqlite`, ignored by Git. Local data and the host
 | Finance executive | finance@demo.settle | demo-settle |
 | Co-founder | founder@demo.settle | demo-settle |
 
-These published demo credentials are intentional and suitable only for synthetic data. Sessions last 24 hours and use HTTP-only, SameSite=Strict cookies; HTTPS adds Secure. The submitted application runs locally without an external identity provider.
+These are shared demo accounts for the sample data. Sessions last 24 hours. Session cookies are HTTP-only and SameSite=Strict, with Secure added under HTTPS. No external sign-in service is needed to run the app locally.
 
 ## Reviewer walkthrough
 
 1. Open Overview. Risk, received amounts and exception counts derive from database records.
 2. Open Reconciliation; search `ORD-W-204118`, `ORD-M-88120`, and `ORD-W-204377`. Inspect the calculation drawer and export evidence.
 3. Open Imports. Download `sample-orders.csv`, upload it as Orders / Website, review the proposed mapping and preview. The approve button stays disabled until you check the review box.
-4. Import a settlement CSV with headers `Order ID,Received` and a row `ORD-DEMO-1001,1409`. Choose Settlement and Website. In Per-order totals mode this becomes the authoritative net received amount. Payout transactions mode aggregates partial rows and adds each report's contribution; re-uploading the same source/type/filename replaces that contribution, avoiding double counting. Optional TCS/TDS columns override estimated statutory deductions.
+4. Import a settlement CSV with headers `Order ID,Received` and a row `ORD-DEMO-1001,1409`. Choose Settlement and Website. Per-order totals mode replaces the previous received amount. Payout transactions mode adds partial payments. Uploading the same source/type/filename again corrects that report's amount instead of adding it twice. If TCS/TDS columns are supplied, the app uses those reported deductions.
 5. Open Mapping history and inspect the saved version. Sign in as co-founder to restore it as a new version.
-6. Open Claims, select an exception, mark it In progress and export its evidence. Marking Recovered records a manually confirmed recovery; no money moves and no claim is filed externally.
+6. Open Claims, select an order, mark it In progress and export its evidence. Only mark a claim Recovered after confirming payment. This records the team's decision; it does not move money or file a claim with a partner.
 7. Open Returns and record a receipt reference against a missing return.
 8. As co-founder, edit a rate card, save and inspect recalculated expected amounts. Finance executives cannot change cards or restore versions.
 9. Upload a Settlement report with `Gross amount,Net payout` and `1499,1409`, with no order ID. Review mapping, then open Reconciliation / Needs review. Select or enter the correct order, check the confirmation and approve. An imported unmatched row never changes orders or closes claims without this step.
@@ -37,13 +41,13 @@ These published demo credentials are intentional and suitable only for synthetic
 
 ## Commands and evidence
 
-`npm test`: rules, sample parity, tax separation, tolerance, receipt matching, mapping uncertainty, authentication, access control, import validation, versioning and persistent updates.
+`npm test`: 19 checks for the supplied examples, financial rules, tax separation, courier slabs, mapping suggestions, sign-in, roles, validation, import rollback, payouts and manual match review.
 
-`npm run test:e2e`: ten Playwright cases across desktop and iPhone-sized Chromium: seven-screen layouts, self-hosted font loading, approval, upload/matching/export, missing-ID review, role changes and safe bulk selection. The suite uses an isolated database and leaves the user's demo database unchanged. Local runs use installed Chrome; CI installs Playwright Chromium. HTML reports are in `output/playwright-report/`, screenshots in `output/qa/`.
+`npm run test:e2e`: 10 Playwright checks across desktop and phone-sized layouts. They cover navigation, fonts, uploads, approval, matching, evidence downloads, review decisions, roles and selection after filtering. They use a separate test database. Local runs need Google Chrome; GitHub Actions installs Chromium. Reports are saved in `output/playwright-report/` and screenshots in `output/qa/`. Run `npm run build` first.
 
 `npm run benchmark`: 100,000 in-memory reconciliations plus partner summary. Results in `benchmark-results.json`.
 
-`node scripts/benchmark-import.mjs`: 100,000 CSV rows parsed, validated, imported into temporary SQLite, reconciled, and summarised. Results in `benchmark-import-results.json`. Excludes HTTP network transfer and browser rendering. This is a local benchmark, not a D1 throughput guarantee.
+`npm run benchmark:import`: reads, checks, saves and matches 100,000 CSV rows, then calculates the totals. The recorded local run took 5.3 seconds. Results are in `benchmark-import-results.json`. Network transfer and browser rendering are excluded; hosted performance has not been measured.
 
 `npm run build`: generates `public/app.js`, font assets and `dist/server/index.js` with its deployment manifest. Generated runtime files contain no secrets.
 

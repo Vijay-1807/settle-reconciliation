@@ -1088,7 +1088,7 @@ function taxDialog() {
   modal(
     "Tax deductions, kept separate.",
     "Partner-wise GST TCS and income tax TDS",
-    `<div class="info-banner">${I("shield-check")} These deductions are already included in expected settlements. They are not counted as leakage.</div><div class="table-scroll"><table class="data-table"><thead><tr><th>Partner</th><th class="numeric">GST TCS</th><th class="numeric">Income tax TDS</th></tr></thead><tbody>${summaries.map((p) => `<tr><td>${p.partner}</td><td class="numeric">${money(p.tcs)}</td><td class="numeric">${money(p.tds)}</td></tr>`).join("")}</tbody></table></div><div class="detail-footer"><span class="muted">Illustrative rates from your rate cards</span><button class="btn primary" id="export-tax">${I("download")} Export summary</button></div>`,
+    `<div class="info-banner">${I("shield-check")} These deductions are already included in expected settlements. They are not counted as leakage.</div><div class="table-scroll"><table class="data-table"><thead><tr><th>Partner</th><th class="numeric">GST TCS</th><th class="numeric">Income tax TDS</th></tr></thead><tbody>${summaries.map((p) => `<tr><td>${p.partner}</td><td class="numeric">${money(p.tcs)}</td><td class="numeric">${money(p.tds)}</td></tr>`).join("")}</tbody></table></div><div class="detail-footer"><span class="muted">Reported deductions where supplied; otherwise rate-card estimates</span><button class="btn primary" id="export-tax">${I("download")} Export summary</button></div>`,
   );
   $("#export-tax").onclick = () =>
     downloadCsv(
