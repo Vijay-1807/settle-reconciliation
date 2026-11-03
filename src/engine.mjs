@@ -20,11 +20,43 @@ export const defaultRates = channels.map((channel, i) => ({
   returnDays: 7,
 }));
 const round = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
-export function reconcile(order, rates = defaultRates, today = TODAY) {
+export const defaultCouriers = ["Courier Alpha", "Courier Beta"].map(
+  (partner) => ({
+    partner,
+    baseWeight: 0.5,
+    baseCharge: 60,
+    slabWeight: 0.5,
+    slabCharge: 25,
+  }),
+);
+export const optionalFields = {
+  Orders: ["weightKg", "reference"],
+  Settlement: ["tcs", "tds", "value", "channel", "date", "reference"],
+  COD: ["tcs", "tds", "value", "channel", "date", "reference"],
+  Freight: ["billedWeightKg", "value", "reference"],
+  Returns: ["value", "reference"],
+};
+export const mappedFields = (type) => [
+  ...fields[type],
+  ...(optionalFields[type] || []),
+];
+export function mappingComplete(type, mapping) {
+  return fields[type].every(
+    (f) =>
+      mapping[f] ||
+      (f === "id" && type !== "Orders" && (mapping.value || mapping.reference)),
+  );
+}
+export function reconcile(
+  order,
+  rates = defaultRates,
+  today = TODAY,
+  couriers = defaultCouriers,
+) {
   const r = rates.find((r) => r.channel === order.channel) || rates[0];
   const returned = /return/i.test(order.delivery || "");
-  const tcs = round((order.value * r.tcs) / 100),
-    tds = round((order.value * r.tds) / 100);
+  const tcs = round(order.taxTcs ?? (order.value * r.tcs) / 100),
+    tds = round(order.taxTds ?? (order.value * r.tds) / 100);
   const expected = returned
     ? -r.returnFee
     : round(
@@ -35,7 +67,20 @@ export function reconcile(order, rates = defaultRates, today = TODAY) {
     0,
     Math.floor((Date.parse(today) - Date.parse(order.date)) / 86400000),
   );
-  const freightGap = round(Math.max(0, Number(order.freight || 0) - r.freight));
+  const courier = couriers.find((c) => c.partner === order.partner);
+  const weightKg = Number(order.weightKg || 0.5);
+  const freightExpected = courier
+    ? round(
+        courier.baseCharge +
+          Math.ceil(
+            Math.max(0, weightKg - courier.baseWeight) / courier.slabWeight,
+          ) *
+            courier.slabCharge,
+      )
+    : r.freight;
+  const freightGap = round(
+    Math.max(0, Number(order.freight || 0) - freightExpected),
+  );
   const issues = [];
   if (returned && !order.receipt && age > r.returnDays)
     issues.push("Return not received");
@@ -62,16 +107,18 @@ export function reconcile(order, rates = defaultRates, today = TODAY) {
     tds,
     age,
     freightGap,
+    freightExpected,
+    weightKg,
     status,
     issues,
     risk,
     rate: r,
   };
 }
-export function reconcileAll(orders, rates, today) {
+export function reconcileAll(orders, rates, today, couriers = defaultCouriers) {
   const byChannel = new Map(rates.map((r) => [r.channel, [r]]));
   return orders.map((o) =>
-    reconcile(o, byChannel.get(o.channel) || rates, today),
+    reconcile(o, byChannel.get(o.channel) || rates, today, couriers),
   );
 }
 export function summary(orders) {
@@ -160,6 +207,7 @@ export function seed() {
     freight: 60,
     date: "2026-10-18",
     payment: "COD",
+    reference: "AWB-204118",
   };
   orders[1] = {
     ...orders[1],
@@ -189,6 +237,7 @@ export function seed() {
   return {
     orders,
     rates,
+    couriers: defaultCouriers,
     mappings: [],
     uploads: [
       {
@@ -229,6 +278,11 @@ export const aliases = {
   ],
   freight: ["freight", "freightamount", "shippingcharge", "billedfreight"],
   receipt: ["receipt", "warehousereceipt", "scanid"],
+  weightKg: ["weightkg", "actualweight", "deadweight", "packageweight"],
+  billedWeightKg: ["billedweight", "chargedweight", "billedweightkg"],
+  reference: ["reference", "awb", "trackingid", "shipmentid"],
+  tcs: ["tcs", "gsttcs", "tcsamount"],
+  tds: ["tds", "incometaxtds", "tdsamount"],
 };
 // A small, local nearest-neighbour classifier. Character n-gram vectors let the
 // assistant generalise to changed headers. Approved mappings extend its examples.
@@ -257,7 +311,7 @@ function similarity(a, b) {
 }
 export function suggestMapping(headers, type, approved = []) {
   const examples = Object.fromEntries(
-    fields[type].map((f) => [
+    mappedFields(type).map((f) => [
       f,
       [
         ...aliases[f],
@@ -268,7 +322,27 @@ export function suggestMapping(headers, type, approved = []) {
     ]),
   );
   const used = new Set();
-  return fields[type].map((field) => {
+  const predictions = new Map();
+  // Reserve strongest global matches first so a weak optional tax match cannot
+  // consume a column that is an exact order-value match.
+  const ordered = mappedFields(type)
+    .map((field) => ({
+      field,
+      score: Math.max(
+        0,
+        ...headers.map((h) =>
+          Math.max(
+            ...examples[field].map((e) =>
+              normalize(e.text) === normalize(h)
+                ? 0.99
+                : similarity(vector(h), e.vector),
+            ),
+          ),
+        ),
+      ),
+    }))
+    .sort((a, b) => b.score - a.score);
+  for (const { field } of ordered) {
     const ranked = headers
       .filter((h) => !used.has(h))
       .map((column) => ({
@@ -285,34 +359,130 @@ export function suggestMapping(headers, type, approved = []) {
     const best = ranked[0];
     const score = best?.score || 0;
     const ambiguous = ranked[1] && Math.abs(score - ranked[1].score) < 0.06;
-    const column = score >= 0.52 && !ambiguous ? best.column : "";
+    const threshold = ["tcs", "tds"].includes(field) ? 0.85 : 0.52;
+    const column = score >= threshold && !ambiguous ? best.column : "";
     if (column) used.add(column);
-    return {
+    predictions.set(field, {
       field,
       column,
       confidence: Math.round(score * 100) / 100,
       method: column ? "Local n-gram classifier" : "Needs review",
-    };
-  });
+    });
+  }
+  return mappedFields(type).map((field) => predictions.get(field));
 }
 export function validateRow(row, type) {
-  if (!row.id || String(row.id).length > 100)
+  if (
+    (!String(row.id || "").trim() &&
+      (type === "Orders" || (!row.value && !row.reference))) ||
+    String(row.id || "").length > 100
+  )
     return "A valid order ID is required";
   if (type === "Orders") {
     if (!channels.includes(row.channel)) return "Unknown channel";
     if (!Number.isFinite(Number(row.value)) || Number(row.value) <= 0)
       return "Order value must be positive";
+    if (!partners.includes(row.partner))
+      return "Choose a known courier or marketplace partner";
+    if (!["COD", "Prepaid"].includes(row.payment))
+      return "Payment must be COD or Prepaid";
     if (
       !/^\d{4}-\d{2}-\d{2}$/.test(row.date) ||
-      !Number.isFinite(Date.parse(row.date))
+      !Number.isFinite(Date.parse(row.date)) ||
+      new Date(row.date).toISOString().slice(0, 10) !== row.date
     )
       return "Use an ISO date (YYYY-MM-DD)";
   }
-  for (const key of ["received", "freight"])
+  for (const key of [
+    "received",
+    "freight",
+    "tcs",
+    "tds",
+    "weightKg",
+    "billedWeightKg",
+  ])
     if (
       row[key] !== undefined &&
-      (!Number.isFinite(Number(row[key])) || Math.abs(Number(row[key])) > 1e8)
+      (String(row[key]).trim() === "" ||
+        !Number.isFinite(Number(row[key])) ||
+        Math.abs(Number(row[key])) > 1e8 ||
+        (key !== "received" && Number(row[key]) < 0))
     )
       return `Invalid ${key} amount`;
+  const requiredNumber =
+    type === "Settlement" || type === "COD"
+      ? "received"
+      : type === "Freight"
+        ? "freight"
+        : null;
+  if (requiredNumber && row[requiredNumber] === undefined)
+    return `Invalid ${requiredNumber} amount`;
+  if (row.weightKg !== undefined && Number(row.weightKg) <= 0)
+    return "Actual weight must be positive";
+  if (type === "Returns" && !String(row.receipt || "").trim())
+    return "A warehouse receipt scan is required";
+  for (const [key, value] of Object.entries(row))
+    if (String(value ?? "").length > 200) return `Field ${key} is too long`;
   return null;
+}
+
+export function matchCandidates(
+  row,
+  orders,
+  rates,
+  source,
+  couriers = defaultCouriers,
+) {
+  return orders
+    .map((o) => {
+      let score = 0;
+      const reasons = [];
+      if (
+        row.reference &&
+        o.reference &&
+        String(row.reference) === String(o.reference)
+      ) {
+        score += 0.75;
+        reasons.push("Same shipment reference");
+      }
+      if (
+        Number(row.value) > 0 &&
+        Math.abs(o.value - Number(row.value)) < 0.01
+      ) {
+        score += 0.45;
+        reasons.push("Same order value");
+      }
+      if (row.channel === o.channel) {
+        score += 0.15;
+        reasons.push("Same channel");
+      }
+      if (source === o.channel || source === o.partner) {
+        score += 0.1;
+        reasons.push("Same partner/source");
+      }
+      if (row.date === o.date) {
+        score += 0.15;
+        reasons.push("Same order date");
+      }
+      if (
+        row.received !== undefined &&
+        Math.abs(
+          reconcile(o, rates, TODAY, couriers).expected - Number(row.received),
+        ) <= 10
+      ) {
+        score += 0.1;
+        reasons.push("Payout within ₹10");
+      }
+      return {
+        id: o.id,
+        score: Math.min(0.99, round(score)),
+        reasons,
+        value: o.value,
+        channel: o.channel,
+        date: o.date,
+      };
+    })
+    .filter((c) => c.score >= 0.4)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
 }

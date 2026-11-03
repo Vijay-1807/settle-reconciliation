@@ -1,6 +1,6 @@
 {
   "rows": 100000,
-  "elapsedMs": 157,
+  "elapsedMs": 209,
   "underOneMinute": true,
   "scope": "Pure reconciliation and summary, in-memory Node.js. Excludes parsing, network, persistence and rendering.",
   "runtime": "v22.19.0",

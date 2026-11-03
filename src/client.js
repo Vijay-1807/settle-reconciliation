@@ -41,7 +41,14 @@ import {
   Filter,
 } from "lucide";
 import * as XLSX from "xlsx";
-import { fields, channels, partners } from "./engine.mjs";
+import {
+  fields,
+  channels,
+  partners,
+  optionalFields,
+  mappedFields,
+  mappingComplete,
+} from "./engine.mjs";
 const $ = (s) => document.querySelector(s),
   $$ = (s) => [...document.querySelectorAll(s)];
 const icons = {
@@ -138,7 +145,19 @@ function hydrate() {
     );
   });
   $$(".data-table th").forEach((el) => el.setAttribute("scope", "col"));
+  syncNavigation();
 }
+function syncNavigation() {
+  const sidebar = $(".sidebar"),
+    menu = $(".mobile-menu");
+  if (!sidebar) return;
+  const closed =
+    window.matchMedia("(max-width:760px)").matches &&
+    !document.body.classList.contains("menu-open");
+  sidebar.inert = closed;
+  if (menu) menu.setAttribute("aria-expanded", String(!closed));
+}
+window.addEventListener("resize", syncNavigation);
 async function request(path, body) {
   const res = await fetch("/api/" + path, {
     ...(body === undefined
@@ -198,7 +217,7 @@ function currentOrders() {
   );
 }
 function shell() {
-  return `<aside class="sidebar"><a href="#" class="brand" data-nav="Overview"><span class="brand-mark">s<span>•</span></span>settle<span class="brand-period">.</span></a><button class="workspace" data-action="workspace"><span class="workspace-icon">A</span><span><strong>Company A</strong><small>Finance workspace</small></span>${I("chevron-down")}</button><div class="nav-label">WORKSPACE</div><nav>${[
+  return `<aside class="sidebar" id="workspace-navigation" aria-label="Primary navigation"><a href="#" class="brand" data-nav="Overview"><span class="brand-mark">s<span>•</span></span>settle<span class="brand-period">.</span></a><button class="workspace" data-action="workspace"><span class="workspace-icon">A</span><span><strong>Company A</strong><small>Finance workspace</small></span>${I("chevron-down")}</button><div class="nav-label">WORKSPACE</div><nav>${[
     ["Overview", "layout-dashboard"],
     ["Reconciliation", "arrow-left-right"],
     ["Imports", "upload"],
@@ -221,7 +240,7 @@ function shell() {
     )
     .join(
       "",
-    )}</nav><div class="sidebar-bottom"><div class="close-card"><span class="live-dot"></span> Your numbers, in order.<p>A clearer close starts here.</p></div><button class="nav-item" data-action="help">${I("help-circle")}<span>Help & getting started</span>${I("arrow-up-right")}</button><button class="profile" data-action="account"><span class="avatar">${data.user.role === "co-founder" ? "AR" : "VB"}</span><span><strong>${esc(data.user.name)}</strong><small>${esc(data.user.role)}</small></span>${I("chevrons-up-down")}</button></div></aside><div class="scrim" data-action="mobile-menu"></div><div class="main"><header class="topbar"><div class="breadcrumb"><button class="icon-btn mobile-menu" aria-label="Open navigation" data-action="mobile-menu">${I("menu")}</button><span>Workspace</span>${I("chevron-right")}<strong>${view}</strong></div><div class="top-right"><span class="demo-label"><span class="live-dot"></span>Demo workspace</span><button class="icon-btn" aria-label="Workspace help" data-action="help">${I("help-circle")}</button><span class="avatar small">${data.user.role === "co-founder" ? "AR" : "VB"}</span></div></header><main id="main-content"></main><footer><span>${I("shield-check")} Personal data stays out of your workspace.</span><span>Company A · Bengaluru <span class="footer-dot">•</span> INR ₹</span></footer></div>`;
+    )}</nav><div class="sidebar-bottom"><div class="close-card"><span class="live-dot"></span> Your numbers, in order.<p>A clearer close starts here.</p></div><button class="nav-item" data-action="help">${I("help-circle")}<span>Help & getting started</span>${I("arrow-up-right")}</button><button class="profile" data-action="account"><span class="avatar">${data.user.role === "co-founder" ? "AR" : "VB"}</span><span><strong>${esc(data.user.name)}</strong><small>${esc(data.user.role)}</small></span>${I("chevrons-up-down")}</button></div></aside><div class="scrim" data-action="mobile-menu"></div><div class="main"><header class="topbar"><div class="breadcrumb"><button class="icon-btn mobile-menu" aria-label="Open navigation" aria-controls="workspace-navigation" aria-expanded="false" data-action="mobile-menu">${I("menu")}</button><span>Workspace</span>${I("chevron-right")}<strong>${view}</strong></div><div class="top-right"><span class="demo-label"><span class="live-dot"></span>Demo workspace</span><button class="icon-btn" aria-label="Workspace help" data-action="help">${I("help-circle")}</button><button class="avatar small" data-action="account" aria-label="Your account">${data.user.role === "co-founder" ? "AR" : "VB"}</button></div></header><main id="main-content"></main><footer><span>${I("shield-check")} Personal data stays out of your workspace.</span><span>Company A · Bengaluru <span class="footer-dot">•</span> INR ₹</span></footer></div>`;
 }
 function render() {
   const scroll = window.scrollY;
@@ -294,7 +313,10 @@ function overview() {
     ]
       .map(([status, title, sub, icon, color]) => {
         const a = orders.filter(
-          (o) => o.issues.includes(status) && o.claim !== "Recovered",
+          (o) =>
+            o.issues.includes(status) &&
+            o.claim !== "Recovered" &&
+            o.claim !== "Rejected",
         );
         return `<button class="action-row" data-status="${status}"><span class="action-icon ${color}">${I(icon)}</span><span><strong>${title}</strong><small>${sub}</small><span class="action-meta">${a.length} orders <span>·</span> ${money(a.reduce((s, o) => s + o.risk, 0))} at risk</span></span>${I("chevron-right")}</button>`;
       })
@@ -333,6 +355,7 @@ function pagination(total) {
   return `<div class="pagination"><span>${total ? `${(page - 1) * 12 + 1}–${Math.min(page * 12, total)}` : "0"} of ${num(total)} orders</span><span><button class="icon-btn" aria-label="Previous page" data-action="previous" ${page === 1 ? "disabled" : ""}>${I("chevron-left")}</button><span>Page ${page} of ${pages}</span><button class="icon-btn" aria-label="Next page" data-action="next" ${page === pages ? "disabled" : ""}>${I("chevron-right")}</button></span></div>`;
 }
 function reconciliation() {
+  if (activeTab === "Needs review") return reviewQueue();
   let a = currentOrders();
   if (activeTab === "Exceptions") a = a.filter((o) => o.issues.length);
   if (activeTab === "Settled") a = a.filter((o) => o.status === "Settled");
@@ -345,8 +368,97 @@ function reconciliation() {
       button("Export results", "export-orders", "secondary", "download") +
         button("Upload reports", "upload", "primary", "plus"),
     ) +
-    `<div class="summary-strip"><span><strong>${num(data.orders.length)}</strong> total orders</span><span><b class="green-text">${num(data.orders.filter((o) => o.status === "Settled").length)}</b> fully settled</span><span><b class="risk-number">${num(data.orders.filter((o) => o.issues.length).length)}</b> exceptions</span><span>${I("shield-check")} ₹10 matching tolerance</span></div><section class="panel"><div class="tabs">${["All orders", "Exceptions", "Settled"].map((t) => `<button data-tab="${t}" class="${t === activeTab ? "active" : ""}">${t}</button>`).join("")}<span class="tabs-end">${I("check-check")} Rule-based matching</span></div>${filters()}${orderTable(a.slice((page - 1) * 12, page * 12))}${pagination(a.length)}</section><div class="quiet-note">${I("alert-circle")} Expected amount = order value − channel fee − commission − TCS − TDS. Returned orders use the return fee.</div>`
+    `<div class="summary-strip"><span><strong>${num(data.orders.length)}</strong> total orders</span><span><b class="green-text">${num(data.orders.filter((o) => o.status === "Settled").length)}</b> fully settled</span><span><b class="risk-number">${num(data.orders.filter((o) => o.issues.length).length)}</b> exceptions</span><span>${I("shield-check")} ₹10 matching tolerance</span></div><section class="panel"><div class="tabs">${["All orders", "Exceptions", "Settled", "Needs review"].map((t) => `<button data-tab="${t}" class="${t === activeTab ? "active" : ""}">${t}</button>`).join("")}<span class="tabs-end">${I("check-check")} Rule-based matching</span></div>${filters()}${orderTable(a.slice((page - 1) * 12, page * 12))}${pagination(a.length)}</section><div class="quiet-note">${I("alert-circle")} Expected amount = order value − channel fee − commission − TCS − TDS. Returned orders use the return fee.</div>`
   );
+}
+function courierCards(founder) {
+  return `<div class="section-intro"><h2>Courier weight slabs</h2><p>Actual package weight sets the expected charge. Billed weight is evidence, not the rate input.</p></div><section class="rate-grid courier-grid">${data.couriers
+    .map(
+      (r, i) =>
+        `<article class="panel rate-card" data-courier="${i}"><div class="rate-heading"><span class="partner-avatar color-${i}">${i ? "β" : "α"}</span><h2>${r.partner}</h2><span class="mini-pill green">Active</span></div><div class="rate-fields">${[
+          ["baseWeight", "First slab weight", "kg"],
+          ["baseCharge", "First slab charge", "₹"],
+          ["slabWeight", "Additional slab weight", "kg"],
+          ["slabCharge", "Additional slab charge", "₹"],
+        ]
+          .map(
+            ([key, title, unit]) =>
+              `<label>${title}<div class="rate-input"><input aria-label="${r.partner} ${title}" type="number" min="0" step="0.01" data-key="${key}" value="${r[key]}" ${founder ? "" : "disabled"}><span>${unit}</span></div></label>`,
+          )
+          .join(
+            "",
+          )}</div><div class="rate-formula">Base charge + rounded-up additional weight slabs</div></article>`,
+    )
+    .join("")}</section>`;
+}
+function reviewQueue() {
+  const pending = data.reviews.filter((r) => r.status === "Pending");
+  return (
+    heading(
+      "A second look. A confident match.",
+      "Suggested matches stay open until your team reviews the source evidence.",
+      button("Back to orders", "back-orders", "secondary", "arrow-left-right"),
+    ) +
+    `<div class="info-banner">${I("shield-check")} ${pending.length} rows need an order match. Suggestions never change an order or close a claim automatically.</div><section class="panel"><div class="table-scroll"><table class="data-table"><thead><tr><th>Report / row</th><th>Source</th><th>Amount received</th><th>Suggested order</th><th>Review</th></tr></thead><tbody>${pending.map((r) => `<tr><td><strong>${esc(r.name)}</strong><small>Row ${r.sourceRows.join(", ")} · ${esc(r.type)}</small></td><td>${esc(r.source)}</td><td>${r.row.received === undefined ? "—" : money(r.row.received)}</td><td>${r.candidates[0] ? esc(r.candidates[0].id) : "Choose an order manually"}<small>${r.candidates.length} candidates · no changes applied</small></td><td><button class="text-btn" data-review="${r.id}">Review match ${I("arrow-up-right")}</button></td></tr>`).join("")}</tbody></table></div>${!pending.length ? empty("All matches reviewed", "Missing or unrecognised order IDs will appear here for a manual decision.") : ""}</section>`
+  );
+}
+function reviewDialog(id) {
+  const r = data.reviews.find((r) => r.id === id);
+  modal(
+    "Review the suggested order match",
+    `${esc(r.name)} · row ${r.sourceRows.join(", ")}`,
+    `<div class="info-banner">${I("alert-circle")} Similarity scores are suggestions, not certainty. Check the amount, channel, date and source before approving.</div><div class="calculation">${Object.entries(
+      r.row,
+    )
+      .map(
+        ([k, v]) =>
+          `<div><span>${esc(fieldLabels[k] || k)}</span><strong>${esc(v)}</strong></div>`,
+      )
+      .join(
+        "",
+      )}</div><h3 class="section-title">Candidate orders</h3>${r.candidates.map((c) => `<label class="candidate"><input type="radio" name="candidate" value="${esc(c.id)}"><span><strong>${esc(c.id)}</strong><small>${esc(c.channel)} · ${money(c.value)} · ${date(c.date)}</small><small>${esc(c.reasons.join(" · "))}</small></span><span class="version">${Math.round(c.score * 100)} similarity</span></label>`).join("") || "<p>No confident candidate. Look up the order and enter its exact ID.</p>"}<label class="form-label">Confirmed order ID<input id="review-order-id" placeholder="e.g. ORD-W-204118" maxlength="100"></label><label class="approve-check"><input type="checkbox" id="review-confirm">I checked the evidence and confirm this order match.</label><div class="detail-footer"><button class="btn secondary" id="review-reject">Reject suggestion</button><button class="btn primary" id="review-approve" disabled>Approve match</button></div>`,
+  );
+  const input = $("#review-order-id"),
+    confirm = $("#review-confirm"),
+    approve = $("#review-approve");
+  const sync = () =>
+    (approve.disabled = !input.value.trim() || !confirm.checked);
+  $$('[name="candidate"]').forEach(
+    (el) =>
+      (el.onchange = () => {
+        input.value = el.value;
+        confirm.checked = false;
+        sync();
+      }),
+  );
+  input.oninput = () => {
+    confirm.checked = false;
+    sync();
+  };
+  confirm.onchange = sync;
+  const submit = async (action) => {
+    approve.disabled = true;
+    try {
+      await request("review", {
+        id,
+        action,
+        orderId: input.value.trim(),
+        approved: confirm.checked,
+      });
+      closeModal();
+      await load();
+      toast(
+        action === "approve"
+          ? "Order match approved. Reconciliation updated."
+          : "Suggestion rejected. No order was changed.",
+      );
+    } catch (e) {
+      toast(e.message, true);
+      sync();
+    }
+  };
+  approve.onclick = () => submit("approve");
+  $("#review-reject").onclick = () => submit("reject");
 }
 function claims() {
   const a = currentOrders().filter((o) => o.risk > 0),
@@ -406,7 +518,7 @@ function imports() {
       .map((x) => `<option>${x}</option>`)
       .join(
         "",
-      )}</select></label><label>Partner / source<select id="upload-source">${["Website", ...partners].map((x) => `<option>${x}</option>`).join("")}</select></label></div><label class="dropzone" id="dropzone"><input id="file-input" type="file" accept=".csv,.xlsx,.xls" aria-label="Choose CSV or Excel report"><span class="upload-illustration">${I("file-spreadsheet")}${I("plus")}</span><h3>Drop your report here</h3><p>or <span>browse files</span> from your computer</p><div class="file-types"><span>CSV</span><span>XLSX</span><span>XLS</span><small>Up to 25 MB · 1,00,000 rows</small></div></label><div class="upload-foot">${I("shield-check")} No customer names, phone numbers, or addresses are saved.<a href="/sample-orders.csv" download>Download sample ${I("download")}</a></div></article><aside class="panel import-guide"><span class="guide-icon">${I("layers")}</span><h2>A little structure.<br>A much faster close.</h2><div class="guide-step"><span>1</span><div><strong>Choose a report</strong><p>Orders, settlements, COD, freight or warehouse receipts.</p></div></div><div class="guide-step"><span>2</span><div><strong>Review your column mapping</strong><p>Get suggestions, check 20 rows, then approve. You’re always in control.</p></div></div><div class="guide-step"><span>3</span><div><strong>Let the rules do the matching</strong><p>Expected amounts and exceptions update automatically.</p></div></div><div class="guide-note">${I("rotate-ccw")} Saved mappings are versioned, so changed formats don’t slow you down.</div></aside></section><section class="panel"><div class="panel-heading"><div><h2>Import history <span class="heading-count">${data.uploads.length}</span></h2><p>Every report, with a clear audit trail</p></div></div><div class="table-scroll"><table class="data-table"><thead><tr><th>Report</th><th>Source</th><th>Type</th><th class="numeric">Rows</th><th>Imported</th><th>Status</th></tr></thead><tbody>${data.uploads.map((u) => `<tr><td><span class="file-name">${I("file-spreadsheet")}${esc(u.name)}</span></td><td>${esc(u.source)}</td><td>${esc(u.type)}</td><td class="numeric">${num(u.rows)}</td><td>${date(u.date)}</td><td>${pill("Settled").replace("Settled", "Completed")}</td></tr>`).join("")}</tbody></table></div></section>`
+      )}</select></label><label>Partner / source<select id="upload-source">${["Website", ...partners].map((x) => `<option>${x}</option>`).join("")}</select></label><label id="mode-control" hidden>Settlement amounts<select id="upload-mode"><option value="snapshot">Per-order totals (replace)</option><option value="transactions">Payout transactions (add)</option></select></label></div><label class="dropzone" id="dropzone"><input id="file-input" type="file" accept=".csv,.xlsx,.xls" aria-label="Choose CSV or Excel report"><span class="upload-illustration">${I("file-spreadsheet")}${I("plus")}</span><h3>Drop your report here</h3><p>or <span>browse files</span> from your computer</p><div class="file-types"><span>CSV</span><span>XLSX</span><span>XLS</span><small>Up to 25 MB · 1,00,000 rows</small></div></label><div class="upload-foot">${I("shield-check")} No customer names, phone numbers, or addresses are saved.<a href="/sample-orders.csv" download>Download sample ${I("download")}</a></div></article><aside class="panel import-guide"><span class="guide-icon">${I("layers")}</span><h2>A little structure.<br>A much faster close.</h2><div class="guide-step"><span>1</span><div><strong>Choose a report</strong><p>Orders, settlements, COD, freight or warehouse receipts.</p></div></div><div class="guide-step"><span>2</span><div><strong>Review your column mapping</strong><p>Get suggestions, check 20 rows, then approve. You’re always in control.</p></div></div><div class="guide-step"><span>3</span><div><strong>Let the rules do the matching</strong><p>Expected amounts and exceptions update automatically.</p></div></div><div class="guide-note">${I("rotate-ccw")} Saved mappings are versioned, so changed formats don’t slow you down.</div></aside></section><section class="panel"><div class="panel-heading"><div><h2>Import history <span class="heading-count">${data.uploads.length}</span></h2><p>Every report, with a clear audit trail</p></div></div><div class="table-scroll"><table class="data-table"><thead><tr><th>Report</th><th>Source</th><th>Type</th><th class="numeric">Rows</th><th>Imported</th><th>Status</th></tr></thead><tbody>${data.uploads.map((u) => `<tr><td><span class="file-name">${I("file-spreadsheet")}${esc(u.name)}</span></td><td>${esc(u.source)}</td><td>${esc(u.type)}</td><td class="numeric">${num(u.rows)}</td><td>${date(u.date)}</td><td>${pill(u.status)}</td></tr>`).join("")}</tbody></table></div></section>`
   );
 }
 function returns() {
@@ -454,7 +566,7 @@ function rateCards() {
       )
       .join(
         "",
-      )}</section><div class="quiet-note">${I("shield-check")} Financial matching uses rules. No AI model calculates your expected amounts.</div>`
+      )}</section>${courierCards(founder)}<div class="quiet-note">${I("shield-check")} Financial matching uses rules. No AI model calculates your expected amounts.</div>`
   );
 }
 function mappingHistory() {
@@ -604,7 +716,7 @@ function bind() {
   const saveRates = $('[data-action="save-rates"]');
   if (saveRates) {
     saveRates.disabled = true;
-    $$("[data-rate] input").forEach(
+    $$("[data-rate] input, [data-courier] input").forEach(
       (input) =>
         (input.oninput = () => {
           saveRates.disabled = false;
@@ -615,6 +727,15 @@ function bind() {
   }
   if ($("#file-input"))
     $("#file-input").onchange = (e) => readUpload(e.target.files[0]);
+  $$("[data-review]").forEach(
+    (el) => (el.onclick = () => reviewDialog(el.dataset.review)),
+  );
+  if ($("#upload-type"))
+    $("#upload-type").onchange = () => {
+      $("#mode-control").hidden = !["Settlement", "COD"].includes(
+        $("#upload-type").value,
+      );
+    };
   if ($("#dropzone")) {
     const zone = $("#dropzone");
     zone.ondragover = (e) => {
@@ -646,13 +767,27 @@ async function action(name) {
   try {
     if (name === "upload") return navigate("Imports");
     if (name === "mapping-history") return navigate("Mapping history");
+    if (name === "reviews") {
+      navigate("Reconciliation");
+      activeTab = "Needs review";
+      render();
+      return;
+    }
+    if (name === "back-orders") {
+      activeTab = "All orders";
+      render();
+      return;
+    }
     if (name === "upload-returns") {
       navigate("Imports");
       $("#upload-type").value = "Returns";
       return;
     }
-    if (name === "mobile-menu")
-      return document.body.classList.toggle("menu-open");
+    if (name === "mobile-menu") {
+      document.body.classList.toggle("menu-open");
+      syncNavigation();
+      return;
+    }
     if (name === "exceptions") {
       navigate("Reconciliation");
       activeTab = "Exceptions";
@@ -713,7 +848,16 @@ async function action(name) {
           ]),
         ),
       }));
-      await request("rates", { rates });
+      const couriers = data.couriers.map((r, i) => ({
+        ...r,
+        ...Object.fromEntries(
+          $$(`[data-courier="${i}"] input`).map((el) => [
+            el.dataset.key,
+            Number(el.value),
+          ]),
+        ),
+      }));
+      await request("rates", { rates, couriers });
       await load();
       return toast("Rate cards saved. Expected amounts recalculated.");
     }
@@ -736,6 +880,15 @@ async function action(name) {
       await request("logout", {});
       closeModal();
       data = null;
+      view = "Overview";
+      q = "";
+      filter = "All statuses";
+      partner = "All partners";
+      period = "All dates";
+      page = 1;
+      activeTab = "All orders";
+      selected.clear();
+      document.body.classList.remove("menu-open");
       return login();
     }
   } catch (e) {
@@ -796,8 +949,18 @@ function orderDetail(id) {
             (-o.value * r.commission) / 100,
           ],
           ["Fixed fee", -r.fee],
-          ["GST TCS (" + r.tcs + "%)", -o.tcs],
-          ["Income tax TDS (" + r.tds + "%)", -o.tds],
+          [
+            "GST TCS (" +
+              (o.taxTcs !== undefined ? "reported" : r.tcs + "%") +
+              ")",
+            -o.tcs,
+          ],
+          [
+            "Income tax TDS (" +
+              (o.taxTds !== undefined ? "reported" : r.tds + "%") +
+              ")",
+            -o.tds,
+          ],
         ]
     )
       .map(
@@ -806,10 +969,32 @@ function orderDetail(id) {
       )
       .join(
         "",
-      )}<div class="calculation-total"><strong>Expected settlement</strong><strong>${money(o.expected)}</strong></div></div>${o.issues.length ? `<h3 class="section-title">Why this order was flagged</h3>${o.issues.map((issue) => `<div class="issue-row">${I("alert-circle")}<span>${esc(issue)}${issue === "Freight overcharged" ? ` · billed ${money(o.freight)}, allowance ${money(r.freight)}` : issue === "Return not received" ? ` · no receipt after ${r.returnDays} days` : issue === "Unpaid past due" ? ` · ${o.age} days old, ${r.dueDays}-day settlement window` : ` · settlement difference ${money(o.difference)}`}</span></div>`).join("")}` : ""}<h3 class="section-title">Source evidence</h3><div class="evidence-box">${I("file-spreadsheet")}<span><strong>${esc(o.source)}</strong><small>Row ${o.sourceRow} · ${esc(o.partner)} · Original order ID preserved</small></span></div><div class="detail-footer"><span class="muted">Claim status: ${esc(o.claim)}</span><button class="btn primary" id="export-one">${I("download")} Export evidence</button></div>`,
+      )}<div class="calculation-total"><strong>Expected settlement</strong><strong>${money(o.expected)}</strong></div></div>${o.issues.length ? `<h3 class="section-title">Why this order was flagged</h3>${o.issues.map((issue) => `<div class="issue-row">${I("alert-circle")}<span>${esc(issue)}${issue === "Freight overcharged" ? ` · billed ${money(o.freight)}, expected ${money(o.freightExpected)} for ${o.weightKg} kg` : issue === "Return not received" ? ` · no receipt after ${r.returnDays} days` : issue === "Unpaid past due" ? ` · ${o.age} days old, ${r.dueDays}-day settlement window` : ` · settlement difference ${money(o.difference)}`}</span></div>`).join("")}` : ""}<h3 class="section-title">Source evidence</h3>${evidenceHistory(o)}<div class="evidence-box">${I("file-spreadsheet")}<span><strong>${esc(o.source)}</strong><small>Row ${o.sourceRow} · ${esc(o.partner)} · Original order ID preserved</small></span></div><div class="detail-footer"><span class="muted">Claim status: ${esc(o.claim)}</span><button class="btn primary" id="export-one">${I("download")} Export evidence</button></div>`,
     "drawer",
   );
   $("#export-one").onclick = () => exportEvidence([o], "evidence-" + o.id);
+}
+function evidenceHistory(o) {
+  return (o.evidence || [])
+    .map(
+      (e) =>
+        `<div class="audit-row"><span><strong>${esc(e.type)} · ${esc(e.report)}</strong><small>Rows ${e.rows.join(", ")} · ${date(e.date)} · ${e.mode === "transactions" ? "Payout transaction" : "Per-order total"}</small><small>${Object.entries(
+          e.fields,
+        )
+          .filter(([k]) =>
+            [
+              "received",
+              "freight",
+              "tcs",
+              "tds",
+              "receipt",
+              "weightKg",
+            ].includes(k),
+          )
+          .map(([k, v]) => `${esc(fieldLabels[k] || k)}: ${esc(v)}`)
+          .join(" · ")}</small></span></div>`,
+    )
+    .join("");
 }
 function exportEvidence(orders, name) {
   if (!orders.length) return toast("No matching orders to export.", true);
@@ -835,6 +1020,7 @@ function exportEvidence(orders, name) {
     "Source file",
     "Source row",
     "Receipt",
+    "Source evidence JSON",
   ];
   const rows = orders.map((o) => [
     o.id,
@@ -848,7 +1034,7 @@ function exportEvidence(orders, name) {
     o.received,
     o.difference,
     o.freight,
-    o.rate.freight,
+    o.freightExpected,
     o.freightGap,
     o.tcs,
     o.tds,
@@ -858,6 +1044,7 @@ function exportEvidence(orders, name) {
     o.source,
     o.sourceRow,
     o.receipt,
+    JSON.stringify(o.evidence || []),
   ]);
   downloadCsv([header, ...rows], name);
   toast("Evidence exported for " + orders.length + " orders.");
@@ -1011,6 +1198,7 @@ async function readUpload(file) {
     const workbook = XLSX.read(await file.arrayBuffer(), {
       type: "array",
       cellDates: false,
+      dateNF: "yyyy-mm-dd",
     });
     const rows = XLSX.utils.sheet_to_json(
       workbook.Sheets[workbook.SheetNames[0]],
@@ -1026,7 +1214,7 @@ async function readUpload(file) {
         (m) =>
           m.type === type &&
           m.source === source &&
-          Object.values(m.mapping).every((c) => headers.includes(c)),
+          Object.values(m.mapping).every((c) => !c || headers.includes(c)),
       );
     draft = {
       file,
@@ -1034,6 +1222,7 @@ async function readUpload(file) {
       headers,
       type,
       source,
+      mode: $("#upload-mode").value,
       mapping: saved
         ? { ...saved.mapping }
         : Object.fromEntries(
@@ -1058,18 +1247,23 @@ const fieldLabels = {
   received: "Amount received",
   freight: "Freight charged",
   receipt: "Warehouse receipt",
+  weightKg: "Actual package weight (kg)",
+  billedWeightKg: "Billed weight (kg)",
+  reference: "Shipment reference / AWB",
+  tcs: "GST TCS deducted",
+  tds: "Income tax TDS deducted",
 };
 function showMapping() {
   const d = draft;
   modal(
     "A good match starts with good columns.",
     `STEP 02 / 03 · ${esc(d.file.name)} · ${num(d.rows.length)} rows`,
-    `${d.saved ? `<div class="info-banner green">${I("check-circle-2")} Saved mapping v${d.saved.version} loaded for ${esc(d.source)}. Review it before continuing.</div>` : `<div class="info-banner">${I("sparkles")} <span><strong>Mapping suggestions, ready for your review.</strong> Header-based suggestions can be wrong. Check every field, then preview your data.</span></div>`}<div class="mapping-grid">${fields[
-      d.type
-    ]
+    `${d.saved ? `<div class="info-banner green">${I("check-circle-2")} Saved mapping v${d.saved.version} loaded for ${esc(d.source)}. Review it before continuing.</div>` : `<div class="info-banner">${I("sparkles")} <span><strong>Mapping suggestions, ready for your review.</strong> Header-based suggestions can be wrong. Check every field, then preview your data.</span></div>`}<p class="mapping-explainer">Optional tax columns keep actual TCS/TDS separate from leakage. For missing order IDs, map an order value or shipment reference; those rows go to manual review.</p><div class="mapping-grid">${mappedFields(
+      d.type,
+    )
       .map((f) => {
         const s = d.suggestions.find((x) => x.field === f);
-        return `<label>${fieldLabels[f]} <span class="required">*</span><select data-map="${f}"><option value="">Select a column</option>${d.headers.map((h) => `<option value="${esc(h)}" ${d.mapping[f] === h ? "selected" : ""}>${esc(h)}</option>`).join("")}</select><small>${d.saved ? "Saved mapping" : s?.confidence >= 0.9 ? "Suggested · high confidence" : "Review required"}</small></label>`;
+        return `<label>${fieldLabels[f]} ${fields[d.type].includes(f) ? '<span class="required">*</span>' : "<small>Optional</small>"}<select data-map="${f}"><option value="">Select a column</option>${d.headers.map((h) => `<option value="${esc(h)}" ${d.mapping[f] === h ? "selected" : ""}>${esc(h)}</option>`).join("")}</select><small>${d.saved ? "Saved mapping" : s?.confidence >= 0.9 ? "Suggested · high confidence" : "Review required"}</small></label>`;
       })
       .join(
         "",
@@ -1088,17 +1282,23 @@ function showMapping() {
   );
   $("#approve").onchange = (e) =>
     ($("#approve-import").disabled =
-      !e.target.checked || fields[d.type].some((f) => !d.mapping[f]));
+      !e.target.checked || !mappingComplete(d.type, d.mapping));
   $("#approve-import").onclick = commitImport;
 }
 function mappingPreview() {
   const d = draft;
   $("#preview-table").innerHTML =
-    `<table class="data-table"><thead><tr><th>Row</th>${fields[d.type].map((f) => `<th>${fieldLabels[f]}</th>`).join("")}</tr></thead><tbody>${d.rows
+    `<table class="data-table"><thead><tr><th>Row</th>${mappedFields(d.type)
+      .filter((f) => fields[d.type].includes(f) || d.mapping[f])
+      .map((f) => `<th>${fieldLabels[f]}</th>`)
+      .join("")}</tr></thead><tbody>${d.rows
       .slice(0, 20)
       .map(
         (r, i) =>
-          `<tr><td>${i + 2}</td>${fields[d.type].map((f) => `<td>${esc(r[d.mapping[f]] || "—")}</td>`).join("")}</tr>`,
+          `<tr><td>${i + 2}</td>${mappedFields(d.type)
+            .filter((f) => fields[d.type].includes(f) || d.mapping[f])
+            .map((f) => `<td>${esc(r[d.mapping[f]] || "—")}</td>`)
+            .join("")}</tr>`,
       )
       .join("")}</tbody></table>`;
 }
@@ -1112,7 +1312,10 @@ async function commitImport() {
       type: d.type,
       source: d.source,
       name: d.file.name,
-      mapping: d.mapping,
+      mapping: Object.fromEntries(
+        Object.entries(d.mapping).filter(([, column]) => column),
+      ),
+      mode: d.mode,
       rows: d.rows.map((r) =>
         Object.fromEntries(Object.values(d.mapping).map((c) => [c, r[c]])),
       ),
@@ -1120,7 +1323,7 @@ async function commitImport() {
     closeModal();
     await load();
     toast(
-      `${num(result.imported)} rows imported. Your reconciliation is up to date.`,
+      `${num(result.imported)} orders updated.${result.reviewRows ? ` ${result.reviewRows} rows need manual match review.` : " Your reconciliation is up to date."}`,
     );
     draft = null;
   } catch (e) {

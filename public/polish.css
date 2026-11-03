@@ -1,4 +1,55 @@
 /* Finance tables need contrast and comfortable reading sizes. */
+[hidden] {
+  display: none !important;
+}
+.section-intro {
+  margin: 28px 0 18px;
+}
+.section-intro p,
+.mapping-explainer {
+  font-size: 11px;
+  color: #6f7e62;
+  line-height: 1.8;
+  margin-top: 7px;
+}
+.mapping-explainer {
+  margin-bottom: 20px;
+}
+.courier-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.candidate {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  margin: 10px 0;
+  cursor: pointer;
+}
+.candidate:has(input:checked) {
+  background: #f0f6ea;
+  border-color: #92ad80;
+}
+.candidate > input {
+  accent-color: var(--green);
+  margin-top: 3px;
+}
+.candidate strong {
+  display: block;
+  font-size: 12px;
+}
+.candidate small {
+  display: block;
+  font-size: 10px;
+  margin-top: 6px;
+}
+.candidate > .version {
+  margin-left: auto;
+  font-size: 9px;
+  white-space: nowrap;
+}
 :root {
   --muted: #6a766a;
 }
@@ -174,6 +225,23 @@ footer {
   color: #47663b;
 }
 @media (max-width: 760px) {
+  .courier-grid {
+    grid-template-columns: 1fr;
+  }
+  .candidate {
+    padding: 12px;
+    gap: 9px;
+  }
+  .candidate > .version {
+    font-size: 8px;
+  }
+  .tabs {
+    overflow-x: auto;
+    gap: 20px;
+  }
+  .tabs > button {
+    flex-shrink: 0;
+  }
   .page-heading h1 {
     font-size: 27px;
   }

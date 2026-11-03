@@ -6,3 +6,5 @@ src/assets.generated.mjs
 *.tar.gz
 *.zip
 output/qa/
+output/playwright-report/
+output/playwright-results/

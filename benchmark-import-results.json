@@ -1,8 +1,8 @@
 {
   "rows": 100000,
-  "parsedMs": 2024,
-  "validatedAndPersistedMs": 723,
-  "totalMs": 3197,
+  "parsedMs": 2476,
+  "validatedAndPersistedMs": 1861,
+  "totalMs": 5328,
   "underOneMinute": true,
   "scope": "Local CSV parse, API validation, in-memory SQLite persistence, reconciliation and summary. Excludes HTTP network and browser rendering.",
   "runtime": "v22.19.0"

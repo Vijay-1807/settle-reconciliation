@@ -24,6 +24,7 @@ const assets = Object.fromEntries(
     "sample-orders.csv",
     "dm-sans.woff2",
     "manrope.woff2",
+    "font-licenses.txt",
   ].map((name) => [
     "/" + name,
     readFileSync("public/" + name, name.endsWith(".woff2") ? "base64" : "utf8"),

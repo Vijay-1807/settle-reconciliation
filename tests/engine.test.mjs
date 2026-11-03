@@ -97,6 +97,11 @@ test("classifier learns only from approved mapping examples", () => {
   ]);
   assert.equal(a[1].column, "ABC991");
 });
+test("exact value mapping wins before an optional tax fuzzy match", () => {
+  const m = suggestMapping(["Gross amount", "Net payout"], "Settlement");
+  assert.equal(m.find((s) => s.field === "value").column, "Gross amount");
+  assert.equal(m.find((s) => s.field === "tcs").column, "");
+});
 test("invalid amounts and dates are rejected", () => {
   assert.match(validateRow({ id: "1", received: "nan" }, "COD"), /Invalid/);
   assert.match(
@@ -115,4 +120,41 @@ test("partner summary reconciles to total risk", () => {
     Math.round(sums.partners.reduce((s, p) => s + p.risk, 0) * 100),
     Math.round(sums.risk * 100),
   );
+});
+
+test("courier weight slabs round up actual weight rather than billed weight", () => {
+  const s = seed(),
+    base = { ...s.orders[0], weightKg: 1.1, billedWeightKg: 2, freight: 160 };
+  const o = reconcile(base, s.rates);
+  assert.equal(o.freightExpected, 110);
+  assert.equal(o.freightGap, 50);
+  assert.equal(
+    reconcile({ ...base, weightKg: 1 }, s.rates).freightExpected,
+    85,
+  );
+});
+test("reported taxes change the expected net without becoming leakage", () => {
+  const s = seed(),
+    o = reconcile(
+      { ...s.orders[1], taxTcs: 12, taxTds: 3, received: 891.2 },
+      s.rates,
+    );
+  assert.equal(o.expected, 891.2);
+  assert.equal(o.tcs, 12);
+  assert.equal(o.tds, 3);
+  assert.equal(o.risk, 0);
+});
+test("invalid calendar dates, whitespace IDs, missing amounts and negative freight are rejected", () => {
+  const valid = {
+    id: "A",
+    channel: "Website",
+    partner: "Courier Alpha",
+    value: 1000,
+    payment: "COD",
+    date: "2026-02-30",
+  };
+  assert.match(validateRow(valid, "Orders"), /ISO date/);
+  assert.match(validateRow({ ...valid, id: "   " }, "Orders"), /order ID/);
+  assert.match(validateRow({ id: "A" }, "Settlement"), /received/);
+  assert.match(validateRow({ id: "A", freight: -10 }, "Freight"), /freight/);
 });

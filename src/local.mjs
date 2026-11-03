@@ -1,10 +1,13 @@
 import { createServer } from "node:http";
 import { DatabaseSync } from "node:sqlite";
 import { readFileSync, mkdirSync } from "node:fs";
-import { resolve, extname, sep } from "node:path";
+import { resolve, extname, sep, dirname } from "node:path";
 import { api } from "./api.mjs";
 mkdirSync(".data", { recursive: true });
-const sqlite = new DatabaseSync(".data/settle.sqlite");
+const databasePath = process.env.LOCAL_DB_PATH || ".data/settle.sqlite";
+mkdirSync(dirname(resolve(databasePath)), { recursive: true });
+const sqlite = new DatabaseSync(databasePath);
+sqlite.exec("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;");
 sqlite.exec(readFileSync("drizzle/0000_workspace.sql", "utf8"));
 const DB = {
   prepare(sql) {
@@ -90,6 +93,6 @@ createServer(async (req, res) => {
     res.writeHead(500);
     res.end("Server error");
   }
-}).listen(3000, "127.0.0.1", () =>
-  console.log("Settle ready at http://localhost:3000"),
+}).listen(Number(process.env.PORT || 3000), "127.0.0.1", () =>
+  console.log(`Settle ready at http://localhost:${process.env.PORT || 3000}`),
 );
