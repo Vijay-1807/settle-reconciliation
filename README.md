@@ -1,6 +1,6 @@
 # Settle
 
-[GitHub repository](https://github.com/Vijay-1807/settle-reconciliation) · Private repository; the owner must approve public access for assessment reviewers.
+[Public GitHub repository](https://github.com/Vijay-1807/settle-reconciliation) · Commit history is preserved for review.
 
 A working finance workspace for the D2C home-brand reconciliation brief. Built with a small browser application, a shared HTTP API, SQLite locally, and a Cloudflare Worker/D1 deployment target.
 
@@ -56,4 +56,4 @@ Design references reviewed: [21st.dev](https://21st.dev/) and [MotionSites](http
 
 ## Submission status
 
-The source is in the private GitHub repository linked above, with preserved commit history. Automatic approval review blocked public-repository creation; changing visibility needs explicit owner approval. The technical document and `deployment.md` are packaged in `settle-submission.zip` in the parent workspace. Hosted Sites publication is still pending destination-specific approval; no live deployment is claimed.
+The source is public in the GitHub repository linked above. Keep it public until the assessment review finishes. The technical document and `deployment.md` are packaged together in `settle-submission.zip` in the parent workspace. The reviewer can run the full application locally using the included demo accounts. No live deployment is claimed; hosting is optional for this submission.

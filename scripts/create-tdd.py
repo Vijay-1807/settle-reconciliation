@@ -33,8 +33,8 @@ def page(kicker,title):
     p(kicker,'Kicker');p(title,'TitleCustom')
 
 page('SETTLE / TECHNICAL DESIGN DOCUMENT / 03 NOV 2026','Every rupee.\nAccounted for.')
-p('<b>GitHub repository:</b> <link href="https://github.com/Vijay-1807/settle-reconciliation" color="#206956">https://github.com/Vijay-1807/settle-reconciliation</link><br/>Private repository. Public visibility requires explicit owner approval before assessment submission.')
-p('<b>Hosted application:</b> Not deployed. Private Sites publication was blocked by automatic approval review pending explicit authorization to upload the source to that destination.')
+p('<b>Public GitHub repository:</b> <link href="https://github.com/Vijay-1807/settle-reconciliation" color="#206956">https://github.com/Vijay-1807/settle-reconciliation</link><br/>Commit history is preserved. The repository will remain public for assessment review.')
+p('<b>Deployment:</b> Full local application; no live hosted URL. Live hosting is optional under the assessment instructions. Setup and demo credentials are in deployment.md.')
 p('<b>Local application:</b> http://localhost:3000<br/><b>Project:</b> Settle - Company A order, payment and return reconciliation')
 h('01 / The slice that works')
 p('A finance executive can import an order report, review suggested column mappings on up to 20 rows, approve and save a source-specific mapping, add settlement/COD/freight reports, inspect order-level discrepancies, manage claims and export evidence. A co-founder can additionally change channel rate cards and restore earlier mapping versions. A dashboard derives money at risk from the same order records.')
@@ -94,7 +94,7 @@ p('<b>A1.</b> Seed data is synthetic, with a fixed 2026-11-02 reference date, si
 h('12 / What comes next')
 p('Prioritise normalized immutable evidence and agreement tables, effective-dated cards, courier zone matrices, background import jobs, server-side filtering/pagination, cross-instance concurrency control, production identity/role administration, monitored D1 load tests and backup/restore drills. These strengthen accounting correctness and operational scale before real financial data is accepted.')
 h('13 / Completion status and review handover')
-p('<b>Local build:</b> database-backed, with the requested core flows and tested optional depth.<br/><b>UI:</b> desktop/mobile fonts, layouts and interactions verified with Playwright.<br/><b>Documents:</b> this PDF and deployment.md form the submission ZIP.<br/><b>GitHub:</b> the verified repository is linked on page 1. It is private because automatic review blocked public creation without explicit authorization. The owner must approve public/reviewer access before submission.<br/><b>Hosting:</b> not deployed; destination-specific approval is still required for the private Sites upload. No live success is claimed.')
+p('<b>Local build:</b> database-backed, with the requested core flows and tested optional depth.<br/><b>UI:</b> desktop/mobile fonts, layouts and interactions verified with Playwright.<br/><b>Documents:</b> this PDF and deployment.md form the submission ZIP, containing exactly those two files.<br/><b>GitHub:</b> the public repository is linked on page 1, with the commit history preserved. Keep it public throughout review.<br/><b>Hosting:</b> no live deployment is claimed. The reviewer can run the complete app locally; an optional Worker/D1 build target is included.')
 p('Run instructions, demo credentials, environment/binding names, reviewer walkthrough and deployment limits are in deployment.md. The project keeps local Git history. No assessment choice, application submission, claim filing or partner communication was performed.')
 
 def chrome(canvas,doc):
